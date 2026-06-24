@@ -13,11 +13,18 @@ const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
 const copySelectionBtn = document.getElementById('copySelectionBtn');
 const drawToolBtn = document.getElementById('drawToolBtn');
+const textToolBtn = document.getElementById('textToolBtn');
 const selectToolBtn = document.getElementById('selectToolBtn');
 const bgWhiteBtn = document.getElementById('bgWhiteBtn');
 const bgBlackBtn = document.getElementById('bgBlackBtn');
 const statusConsole = document.getElementById('statusConsole');
 const colorPalette = document.getElementById('colorPalette');
+const textInput = document.getElementById('textInput');
+const textEditorPopup = document.getElementById('textEditorPopup');
+const textSizeInput = document.getElementById('textSizeInput');
+const insertTextBtn = document.getElementById('insertTextBtn');
+const cancelTextBtn = document.getElementById('cancelTextBtn');
+const textPreview = document.getElementById('textPreview');
 
 const colors = [
     '#f87171', '#fb923c', '#facc15', '#4ade80',
@@ -25,7 +32,7 @@ const colors = [
     '#f472b6', '#cbd5e1', '#ffffff', '#000000'
 ];
 
-let currentLineWidth = 8;
+let currentLineWidth = 4;
 let rdpEpsilon = 2.0;
 let currentColor = '#6366f1';
 let currentTool = 'draw';
@@ -38,6 +45,13 @@ let selectionRect = null;
 let shapes = [];
 let undoStack = [];
 let redoStack = [];
+let mathJaxReadyPromise = null;
+let pendingTextPlacement = null;
+let editingTextShapeIndex = null;
+
+const textMeasureCanvas = document.createElement('canvas');
+const textMeasureCtx = textMeasureCanvas.getContext('2d');
+const textRenderCache = new Map();
 
 function updatePaletteButtons() {
     const borderColor = currentBackground === 'white' ? '#0f172a' : '#ffffff';
@@ -152,6 +166,231 @@ function applyBackgroundTheme() {
     updatePaletteButtons();
 }
 
+function getTextShapeCacheKey(shape) {
+    return JSON.stringify({
+        text: shape.text,
+        x: shape.x,
+        y: shape.y,
+        color: shape.color,
+        fontSize: shape.fontSize
+    });
+}
+
+function isBlockFormula(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    if (/^\\begin\{[\s\S]+\\end\{[\s\S]+\}$/.test(trimmed)) return true;
+    if (/^\$\$[\s\S]+\$\$$/.test(trimmed)) return true;
+    if (/^\\\[[\s\S]+\\\]$/.test(trimmed)) return true;
+    return false;
+}
+
+function unwrapBlockFormula(text) {
+    const trimmed = text.trim();
+    if (/^\$\$[\s\S]+\$\$$/.test(trimmed)) {
+        return trimmed.slice(2, -2).trim();
+    }
+    if (/^\\\[[\s\S]+\\\]$/.test(trimmed)) {
+        return trimmed.slice(2, -2).trim();
+    }
+    return trimmed;
+}
+
+function getFormulaMarkup(line) {
+    const trimmed = line.trim();
+    const match = trimmed.match(/^\$(.+)\$$/);
+    return match ? match[1].trim() : null;
+}
+
+function parseLineSegments(line) {
+    const segments = [];
+    const regex = /(\$[^$]+\$)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+            segments.push({ type: 'text', content: line.slice(lastIndex, match.index) });
+        }
+
+        segments.push({
+            type: 'formula',
+            content: match[1].slice(1, -1).trim()
+        });
+
+        lastIndex = match.index + match[1].length;
+    }
+
+    if (lastIndex < line.length) {
+        segments.push({ type: 'text', content: line.slice(lastIndex) });
+    }
+
+    if (!segments.length) {
+        segments.push({ type: 'text', content: '' });
+    }
+
+    return segments;
+}
+
+function waitForMathJax() {
+    if (!window.MathJax || !window.MathJax.startup || !window.MathJax.startup.promise) {
+        return Promise.resolve(null);
+    }
+
+    if (!mathJaxReadyPromise) {
+        mathJaxReadyPromise = window.MathJax.startup.promise;
+    }
+
+    return mathJaxReadyPromise;
+}
+
+function measureTextWidth(text, fontSize) {
+    textMeasureCtx.font = `${fontSize}px 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
+    return textMeasureCtx.measureText(text || ' ').width;
+}
+
+function loadImageFromSvg(svgMarkup) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+    });
+}
+
+async function renderFormulaLine(formula, color, fontSize, display = false) {
+    await waitForMathJax();
+    if (!window.MathJax || !window.MathJax.tex2svg) {
+        return null;
+    }
+
+    const wrapper = window.MathJax.tex2svg(formula, { display });
+    const svg = wrapper.querySelector('svg');
+    if (!svg) {
+        return null;
+    }
+
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.style.color = color;
+    svg.setAttribute('fill', color);
+
+    const measureHost = document.createElement('div');
+    measureHost.style.position = 'absolute';
+    measureHost.style.left = '-9999px';
+    measureHost.style.top = '-9999px';
+    measureHost.style.visibility = 'hidden';
+    measureHost.style.pointerEvents = 'none';
+    measureHost.style.fontSize = `${fontSize}px`;
+    measureHost.style.color = color;
+    measureHost.appendChild(svg.cloneNode(true));
+    document.body.appendChild(measureHost);
+
+    const renderedSvg = measureHost.querySelector('svg');
+    const rect = renderedSvg.getBoundingClientRect();
+    renderedSvg.setAttribute('width', `${Math.max(1, rect.width)}`);
+    renderedSvg.setAttribute('height', `${Math.max(1, rect.height)}`);
+    renderedSvg.setAttribute('viewBox', renderedSvg.getAttribute('viewBox') || `0 0 ${Math.max(1, rect.width)} ${Math.max(1, rect.height)}`);
+    renderedSvg.style.color = color;
+    renderedSvg.setAttribute('fill', color);
+
+    const markup = new XMLSerializer().serializeToString(renderedSvg);
+    document.body.removeChild(measureHost);
+
+    const image = await loadImageFromSvg(markup);
+    return {
+        type: 'formula',
+        formula,
+        image,
+        width: Math.max(1, rect.width),
+        height: Math.max(fontSize * (display ? 1.5 : 1.2), rect.height)
+    };
+}
+
+async function prepareTextRenderData(shape) {
+    const cacheKey = getTextShapeCacheKey(shape);
+    if (textRenderCache.has(cacheKey)) {
+        return textRenderCache.get(cacheKey);
+    }
+
+    if (isBlockFormula(shape.text)) {
+        const formulaBlock = await renderFormulaLine(unwrapBlockFormula(shape.text), shape.color, shape.fontSize, true);
+        if (formulaBlock) {
+            const renderData = {
+                width: formulaBlock.width,
+                height: formulaBlock.height,
+                lines: [{
+                    type: 'rich-line',
+                    width: formulaBlock.width,
+                    height: formulaBlock.height,
+                    segments: [formulaBlock]
+                }]
+            };
+            textRenderCache.set(cacheKey, renderData);
+            return renderData;
+        }
+    }
+
+    const lines = shape.text.split(/\r?\n/);
+    const renderLines = [];
+
+    for (const line of lines) {
+        const fullLineFormula = getFormulaMarkup(line);
+        if (fullLineFormula) {
+            const formulaLine = await renderFormulaLine(fullLineFormula, shape.color, shape.fontSize);
+            if (formulaLine) {
+                renderLines.push({
+                    type: 'rich-line',
+                    width: formulaLine.width,
+                    height: formulaLine.height,
+                    segments: [formulaLine]
+                });
+                continue;
+            }
+        }
+
+        const rawSegments = parseLineSegments(line);
+        const segments = [];
+        let lineWidth = 0;
+        let lineHeight = shape.fontSize * 1.35;
+
+        for (const segment of rawSegments) {
+            if (segment.type === 'formula') {
+                const formulaSegment = await renderFormulaLine(segment.content, shape.color, shape.fontSize);
+                if (formulaSegment) {
+                    segments.push(formulaSegment);
+                    lineWidth += formulaSegment.width;
+                    lineHeight = Math.max(lineHeight, formulaSegment.height);
+                    continue;
+                }
+            }
+
+            const textSegment = {
+                type: 'text',
+                text: segment.content,
+                width: measureTextWidth(segment.content, shape.fontSize),
+                height: shape.fontSize * 1.35
+            };
+            segments.push(textSegment);
+            lineWidth += textSegment.width;
+        }
+
+        renderLines.push({
+            type: 'rich-line',
+            width: lineWidth,
+            height: lineHeight,
+            segments
+        });
+    }
+
+    const renderData = {
+        width: renderLines.reduce((maxWidth, line) => Math.max(maxWidth, line.width), 0),
+        height: renderLines.reduce((totalHeight, line) => totalHeight + line.height, 0),
+        lines: renderLines
+    };
+    textRenderCache.set(cacheKey, renderData);
+    return renderData;
+}
+
 function setBackground(mode) {
     if (currentBackground === mode) return;
     pushUndoState();
@@ -164,14 +403,22 @@ function setBackground(mode) {
 function setTool(tool) {
     currentTool = tool;
     drawToolBtn.classList.toggle('is-active', tool === 'draw');
+    textToolBtn.classList.toggle('is-active', tool === 'text');
     selectToolBtn.classList.toggle('is-active', tool === 'select');
     liveCanvas.classList.toggle('is-drawing', tool === 'draw');
+    liveCanvas.classList.toggle('is-text', tool === 'text');
     liveCanvas.classList.toggle('is-selecting', tool === 'select');
 
     if (tool === 'draw') {
+        hideTextEditorPopup();
         clearSelection();
         logStatus('Draw mode is active.');
+    } else if (tool === 'text') {
+        clearSelection();
+        hideTextEditorPopup();
+        logStatus('Text mode is active. Click the canvas to open the text editor.');
     } else {
+        hideTextEditorPopup();
         logStatus('Selection mode is active. Drag to capture an area.');
     }
 }
@@ -237,11 +484,48 @@ function drawShape(ctx, shape) {
         ctx.beginPath();
         ctx.ellipse(shape.centerX, shape.centerY, shape.radiusX, shape.radiusY, shape.rotation, 0, 2 * Math.PI);
         ctx.stroke();
+    } else if (shape.type === 'text') {
+        drawTextShape(ctx, shape);
     } else if (shape.type === 'curve') {
         drawSmoothedCurve(ctx, shape.points);
     }
 
     ctx.restore();
+}
+
+function drawTextShape(ctx, shape) {
+    const cacheKey = getTextShapeCacheKey(shape);
+    const renderData = textRenderCache.get(cacheKey);
+
+    if (!renderData) {
+        void prepareTextRenderData(shape).then(() => renderScene());
+        ctx.fillStyle = shape.color;
+        ctx.font = `${shape.fontSize}px 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
+        ctx.textBaseline = 'top';
+        shape.text.split(/\r?\n/).forEach((line, index) => {
+            ctx.fillText(line, shape.x, shape.y + index * shape.fontSize * 1.35);
+        });
+        return;
+    }
+
+    let cursorY = shape.y;
+    ctx.fillStyle = shape.color;
+    ctx.font = `${shape.fontSize}px 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
+    ctx.textBaseline = 'top';
+
+    renderData.lines.forEach(line => {
+        let cursorX = shape.x;
+        const segments = line.segments || [line];
+        segments.forEach(segment => {
+            if (segment.type === 'formula') {
+                ctx.drawImage(segment.image, cursorX, cursorY, segment.width, segment.height);
+            } else {
+                ctx.fillText(segment.text, cursorX, cursorY);
+            }
+            cursorX += segment.width;
+        });
+        cursorY += line.height;
+    });
 }
 
 function getPerpendicularDistance(p, p1, p2) {
@@ -622,16 +906,174 @@ function getEventCoords(e) {
     };
 }
 
+function showTextEditorPopup(coords) {
+    pendingTextPlacement = coords;
+    const popupWidth = 320;
+    const popupHeight = 220;
+    const maxLeft = Math.max(12, liveCanvas.clientWidth - popupWidth - 12);
+    const maxTop = Math.max(12, liveCanvas.clientHeight - popupHeight - 12);
+    textEditorPopup.style.left = `${Math.min(coords.x, maxLeft)}px`;
+    textEditorPopup.style.top = `${Math.min(coords.y, maxTop)}px`;
+    textEditorPopup.classList.remove('hidden');
+    updateTextPreview();
+    textInput.focus();
+    textInput.select();
+}
+
+function hideTextEditorPopup() {
+    pendingTextPlacement = null;
+    editingTextShapeIndex = null;
+    textEditorPopup.classList.add('hidden');
+}
+
+async function updateTextPreview() {
+    const content = textInput.value;
+    const fontSize = Math.max(12, Math.min(96, parseInt(textSizeInput.value, 10) || 22));
+    textPreview.style.fontSize = `${fontSize}px`;
+    textPreview.innerHTML = '';
+
+    if (!content.trim()) {
+        textPreview.textContent = 'Preview will appear here.';
+        return;
+    }
+
+    if (isBlockFormula(content)) {
+        await waitForMathJax();
+        if (window.MathJax && window.MathJax.tex2svgPromise) {
+            const node = await window.MathJax.tex2svgPromise(unwrapBlockFormula(content), { display: true });
+            textPreview.innerHTML = '';
+            textPreview.appendChild(node);
+            return;
+        }
+    }
+
+    const fragments = content.split(/\r?\n/);
+    const previewNodes = [];
+
+    for (const line of fragments) {
+        const div = document.createElement('div');
+        div.style.minHeight = `${fontSize * 1.3}px`;
+        const segments = parseLineSegments(line);
+        let hasMath = false;
+
+        for (const segment of segments) {
+            if (segment.type === 'formula') {
+                await waitForMathJax();
+                if (window.MathJax && window.MathJax.tex2svgPromise) {
+                    const node = await window.MathJax.tex2svgPromise(segment.content, { display: false });
+                    div.appendChild(node);
+                    hasMath = true;
+                    continue;
+                }
+            }
+
+            div.appendChild(document.createTextNode(segment.content));
+        }
+
+        if (!line && !hasMath) {
+            div.innerHTML = '&nbsp;';
+        }
+        previewNodes.push(div);
+    }
+
+    textPreview.innerHTML = '';
+    previewNodes.forEach(node => textPreview.appendChild(node));
+}
+
+function createTextShape(coords) {
+    const content = textInput.value.trim();
+    if (!content) {
+        logStatus('Type some text first. Use $...$ for math.');
+        return null;
+    }
+
+    const fontSize = Math.max(12, Math.min(96, parseInt(textSizeInput.value, 10) || 22));
+
+    return {
+        type: 'text',
+        x: coords.x,
+        y: coords.y,
+        color: currentColor,
+        fontSize,
+        text: content,
+        message: 'Text inserted on the canvas.'
+    };
+}
+
+function commitTextPlacement() {
+    if (!pendingTextPlacement) return;
+
+    const textShape = createTextShape(pendingTextPlacement);
+    if (!textShape) {
+        return;
+    }
+
+    pushUndoState();
+    if (editingTextShapeIndex !== null) {
+        shapes[editingTextShapeIndex] = textShape;
+    } else {
+        shapes.push(textShape);
+    }
+    hideTextEditorPopup();
+    void prepareTextRenderData(textShape).then(() => renderScene());
+    renderScene();
+    logStatus(textShape.message);
+}
+
+function getTextShapeAtPoint(coords) {
+    for (let i = shapes.length - 1; i >= 0; i--) {
+        const shape = shapes[i];
+        if (shape.type !== 'text') continue;
+        const renderData = textRenderCache.get(getTextShapeCacheKey(shape));
+        if (!renderData) continue;
+        const withinX = coords.x >= shape.x && coords.x <= shape.x + renderData.width;
+        const withinY = coords.y >= shape.y && coords.y <= shape.y + renderData.height;
+        if (withinX && withinY) {
+            return { shape, index: i };
+        }
+    }
+
+    return null;
+}
+
+function openTextEditorForShape(shapeInfo) {
+    editingTextShapeIndex = shapeInfo.index;
+    textInput.value = shapeInfo.shape.text;
+    textSizeInput.value = shapeInfo.shape.fontSize;
+    showTextEditorPopup({ x: shapeInfo.shape.x, y: shapeInfo.shape.y });
+    logStatus('Editing existing text. Update content or size, then insert.');
+}
+
 function startPointer(e) {
-    isPointerActive = true;
     const coords = getEventCoords(e);
 
     if (currentTool === 'select') {
+        isPointerActive = true;
         selectionStart = coords;
         selectionRect = { x: coords.x, y: coords.y, width: 0, height: 0 };
         drawSelectionOverlay();
         return;
     }
+
+    if (currentTool === 'text') {
+        clearSelection();
+        const textShapeInfo = getTextShapeAtPoint(coords);
+        if (textShapeInfo) {
+            if (e.detail >= 2) {
+                openTextEditorForShape(textShapeInfo);
+            }
+            return;
+        }
+
+        editingTextShapeIndex = null;
+        textInput.value = '';
+        textSizeInput.value = '22';
+        showTextEditorPopup(coords);
+        logStatus('Text editor opened. Set the size and content, then insert.');
+        return;
+    }
+
+    isPointerActive = true;
 
     pointerPoints = [coords];
     clearSelection();
@@ -800,14 +1242,33 @@ undoBtn.addEventListener('click', undo);
 redoBtn.addEventListener('click', redo);
 copySelectionBtn.addEventListener('click', copySelectionToClipboard);
 drawToolBtn.addEventListener('click', () => setTool('draw'));
+textToolBtn.addEventListener('click', () => setTool('text'));
 selectToolBtn.addEventListener('click', () => setTool('select'));
 bgWhiteBtn.addEventListener('click', () => setBackground('white'));
 bgBlackBtn.addEventListener('click', () => setBackground('black'));
+insertTextBtn.addEventListener('click', commitTextPlacement);
+cancelTextBtn.addEventListener('click', () => {
+    hideTextEditorPopup();
+    logStatus('Text insertion cancelled.');
+});
+textInput.addEventListener('input', () => {
+    void updateTextPreview();
+});
+textSizeInput.addEventListener('input', () => {
+    void updateTextPreview();
+});
 window.addEventListener('resize', resizeCanvases);
 window.addEventListener('keydown', handleKeyboardShortcuts);
 
 liveCanvas.addEventListener('mousedown', startPointer);
 liveCanvas.addEventListener('mousemove', movePointer);
+liveCanvas.addEventListener('dblclick', e => {
+    const coords = getEventCoords(e);
+    const shapeInfo = getTextShapeAtPoint(coords);
+    if (!shapeInfo) return;
+    setTool('text');
+    openTextEditorForShape(shapeInfo);
+});
 window.addEventListener('mouseup', stopPointer);
 
 liveCanvas.addEventListener('touchstart', e => {

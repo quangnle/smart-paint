@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Canvas Paint - Smooth Drawing and Smart Shape Detection</title>
+    <title>Smart Board - Smooth Drawing and Smart Shape Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="min-h-screen flex flex-col overflow-hidden app-shell theme-dark">
@@ -15,7 +16,7 @@
                 <div class="bg-indigo-600 p-2.5 rounded-xl shadow-md shadow-indigo-900/30">
                     <i class="fa-solid fa-wand-magic-sparkles text-xl text-white"></i>
                 </div>
-                <h1 class="font-bold text-lg leading-tight whitespace-nowrap">SmartPaint Canvas</h1>
+                <h1 class="font-bold text-lg leading-tight whitespace-nowrap">Smart Board</h1>
             </div>
 
             <div class="header-controls flex items-stretch gap-3 shrink-0">
@@ -35,6 +36,10 @@
                             <i class="fa-solid fa-pen"></i>
                             <span>Draw</span>
                         </button>
+                        <button id="textToolBtn" class="tool-btn" type="button">
+                            <i class="fa-solid fa-font"></i>
+                            <span>Text</span>
+                        </button>
                         <button id="selectToolBtn" class="tool-btn" type="button">
                             <i class="fa-solid fa-vector-square"></i>
                             <span>Select</span>
@@ -45,9 +50,9 @@
                 <div class="control-card control-stack flex flex-col gap-2">
                     <div class="flex items-center justify-between gap-2">
                         <label for="brushSize" class="control-label text-xs font-semibold app-muted">Brush</label>
-                        <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">8px</span>
+                        <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">4px</span>
                     </div>
-                    <input type="range" id="brushSize" min="2" max="30" value="8" class="slider-compact w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    <input type="range" id="brushSize" min="2" max="30" value="4" class="slider-compact w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                 </div>
 
                 <div class="control-card control-stack flex flex-col gap-2">
@@ -94,6 +99,27 @@
         <section id="canvasSection" class="flex-1 relative canvas-stage overflow-hidden min-h-[420px]">
             <canvas id="liveCanvas" class="absolute inset-0 z-20 cursor-crosshair touch-none"></canvas>
             <canvas id="mainCanvas" class="absolute inset-0 z-10 pointer-events-none"></canvas>
+            <div id="textEditorPopup" class="text-editor-popup hidden">
+                <div class="text-editor-card">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-semibold app-muted">Insert Text</span>
+                        <label class="text-xs app-muted flex items-center gap-2">
+                            <span>Size</span>
+                            <input id="textSizeInput" class="text-size-input" type="number" min="12" max="96" step="1" value="22">
+                        </label>
+                    </div>
+                    <textarea id="textInput" class="text-input" rows="4" placeholder="Type text here. Use $...$ for math."></textarea>
+                    <p class="text-[10px] app-muted">You can use multiple lines. Any $...$ fragment will render as math.</p>
+                    <div class="text-preview-panel">
+                        <div class="text-preview-label">Live Preview</div>
+                        <div id="textPreview" class="text-preview-content"></div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button id="cancelTextBtn" class="action-btn" type="button">Cancel</button>
+                        <button id="insertTextBtn" class="action-btn" type="button">Insert</button>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -101,8 +127,8 @@
         <div><a href="https://quangle.cloud">Legos</a> 2026 - Geometry smoothing and smart shape drawing playground</div>
         <div id="statusConsole" class="status-inline text-right">Draw a stroke to get started.</div>
         <div class="flex items-center space-x-4">
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> RDP Filter</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> P.J. Schneider (Cubic Bezier)</span>
+            <a href="https://quangle.cloud/blog/thuat-toan-rut-gon-so-diem-tren-duong-polyline" class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> RDP</a>
+            <a href="https://quangle.cloud/blog/thuat-toan-tu-khop-duong-cong-pj-schneider" class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> PJ Schneider</a>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Shape Normalizer</span>
         </div>
     </footer>

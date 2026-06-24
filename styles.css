@@ -85,6 +85,102 @@ body.theme-light {
     line-height: 1;
 }
 
+.text-input {
+    width: 100%;
+    min-height: 4.75rem;
+    resize: vertical;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.6rem;
+    background: rgba(15, 23, 42, 0.18);
+    color: var(--body-text);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    outline: none;
+}
+
+.text-input::placeholder {
+    color: var(--muted-text);
+}
+
+.text-input:focus {
+    border-color: rgba(129, 140, 248, 0.8);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+.text-editor-popup {
+    position: absolute;
+    z-index: 40;
+    min-width: 20rem;
+    max-width: min(24rem, calc(100% - 1.5rem));
+}
+
+.text-editor-popup.hidden {
+    display: none;
+}
+
+.text-editor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.9rem;
+    background: var(--panel-bg-strong);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+    white-space: normal;
+}
+
+.text-size-input {
+    width: 4.5rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.45rem;
+    background: rgba(15, 23, 42, 0.18);
+    color: var(--body-text);
+    padding: 0.25rem 0.45rem;
+    outline: none;
+}
+
+.text-size-input:focus {
+    border-color: rgba(129, 140, 248, 0.8);
+}
+
+.text-preview-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.text-preview-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--muted-text);
+}
+
+.text-preview-content {
+    min-height: 5rem;
+    max-height: 10rem;
+    overflow: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.6rem;
+    background: rgba(15, 23, 42, 0.12);
+    color: var(--body-text);
+    padding: 0.65rem 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+body.theme-light .text-preview-content {
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.text-preview-content .MathJax,
+.text-preview-content mjx-container {
+    color: inherit !important;
+}
+
 .smart-toggle {
     transform: scale(0.65);
     transform-origin: left center;
@@ -202,7 +298,8 @@ body.theme-light {
 }
 
 #liveCanvas.is-selecting,
-#liveCanvas.is-drawing {
+#liveCanvas.is-drawing,
+#liveCanvas.is-text {
     cursor: crosshair;
 }
 
