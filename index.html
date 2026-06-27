@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Smart Board - Smooth Drawing and Smart Shape Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,83 +12,129 @@
 <body class="min-h-screen flex flex-col overflow-hidden app-shell theme-dark">
     <header class="app-header px-4 py-3 shadow-lg z-10">
         <div class="toolbar-row flex items-center gap-4 overflow-x-auto">
-            <div class="flex items-center space-x-3 shrink-0">
+            <div class="flex items-center space-x-3 shrink-0 header-brand">
+                <button id="mobileMenuBtn" class="mobile-menu-btn" type="button" aria-label="Open tools menu" aria-expanded="false" aria-controls="toolbarDrawer">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
                 <div class="bg-indigo-600 p-2.5 rounded-xl shadow-md shadow-indigo-900/30">
                     <i class="fa-solid fa-wand-magic-sparkles text-xl text-white"></i>
                 </div>
                 <h1 class="font-bold text-lg leading-tight whitespace-nowrap">Smart Board</h1>
+                <span id="activeToolBadge" class="active-tool-badge mobile-only" title="Active tool"><i class="fa-solid fa-pen"></i></span>
             </div>
 
-            <div class="header-controls flex items-stretch gap-3 shrink-0">
-                <div class="control-card control-stack flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="control-label text-xs font-semibold app-muted">Tool</span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[11px] font-semibold app-muted">Smart shapes</span>
-                            <label class="smart-toggle relative inline-flex items-center cursor-pointer w-fit">
-                                <input type="checkbox" id="smartMode" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
+            <div class="mobile-zoom-bar mobile-only">
+                <button id="zoomOutBtnMobile" class="action-btn action-btn-icon" type="button" aria-label="Zoom out" title="Zoom out">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <span id="zoomLevelLabelMobile" class="zoom-level-label">100%</span>
+                <button id="zoomInBtnMobile" class="action-btn action-btn-icon" type="button" aria-label="Zoom in" title="Zoom in">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+
+            <div id="toolbarDrawer" class="toolbar-drawer" aria-hidden="true">
+                <div id="toolbarDrawerBackdrop" class="toolbar-drawer-backdrop"></div>
+                <div class="toolbar-drawer-panel">
+                    <div class="toolbar-drawer-header">
+                        <span class="text-sm font-semibold">Tools &amp; Settings</span>
+                        <button id="closeDrawerBtn" class="action-btn action-btn-icon" type="button" aria-label="Close menu">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div id="headerControls" class="header-controls flex items-stretch gap-3 shrink-0">
+                        <div class="control-card control-stack flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="control-label text-xs font-semibold app-muted">Tool</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-semibold app-muted">Smart shapes</span>
+                                    <label class="smart-toggle relative inline-flex items-center cursor-pointer w-fit">
+                                        <input type="checkbox" id="smartMode" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap" id="toolGroup">
+                                <button id="drawToolBtn" class="tool-btn is-active" type="button">
+                                    <i class="fa-solid fa-pen"></i>
+                                    <span>Draw</span>
+                                </button>
+                                <button id="textToolBtn" class="tool-btn" type="button">
+                                    <i class="fa-solid fa-font"></i>
+                                    <span>Text</span>
+                                </button>
+                                <button id="editToolBtn" class="tool-btn" type="button">
+                                    <i class="fa-solid fa-arrow-pointer"></i>
+                                    <span>Edit</span>
+                                </button>
+                                <button id="cropToolBtn" class="tool-btn" type="button">
+                                    <i class="fa-solid fa-crop-simple"></i>
+                                    <span>Crop</span>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-2" id="toolGroup">
-                        <button id="drawToolBtn" class="tool-btn is-active" type="button">
-                            <i class="fa-solid fa-pen"></i>
-                            <span>Draw</span>
-                        </button>
-                        <button id="textToolBtn" class="tool-btn" type="button">
-                            <i class="fa-solid fa-font"></i>
-                            <span>Text</span>
-                        </button>
-                        <button id="selectToolBtn" class="tool-btn" type="button">
-                            <i class="fa-solid fa-vector-square"></i>
-                            <span>Select</span>
-                        </button>
-                    </div>
-                </div>
 
-                <div class="control-card control-stack flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-2">
-                        <label for="brushSize" class="control-label text-xs font-semibold app-muted">Brush</label>
-                        <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">4px</span>
-                    </div>
-                    <input type="range" id="brushSize" min="2" max="30" value="4" class="slider-compact w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                </div>
-
-                <div class="control-card control-stack flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-2">
-                        <label for="tolerance" class="control-label text-xs font-semibold app-muted">Sensitivity</label>
-                        <span id="toleranceVal" class="font-semibold text-amber-400 text-xs min-w-[3rem] text-right">2.0px</span>
-                    </div>
-                    <input type="range" id="tolerance" min="0.5" max="10.0" step="0.5" value="2.0" class="slider-compact w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
-                </div>
-
-                <div class="control-card control-stack flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="control-label text-xs font-semibold app-muted">Palette</span>
-                        <div class="flex items-center gap-2">
-                            <button id="bgWhiteBtn" class="swatch-btn is-active" type="button" aria-label="White background" title="White background"></button>
-                            <button id="bgBlackBtn" class="swatch-btn swatch-btn-dark" type="button" aria-label="Black background" title="Black background"></button>
+                        <div class="control-card control-stack flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label for="brushSize" class="control-label text-xs font-semibold app-muted">Brush</label>
+                                <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">4px</span>
+                            </div>
+                            <input type="range" id="brushSize" min="2" max="30" value="4" class="slider-compact w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                         </div>
-                    </div>
-                    <div class="palette-grid" id="colorPalette"></div>
-                </div>
 
-                <div class="control-card control-stack flex flex-col gap-2">
-                    <span class="control-label text-xs font-semibold app-muted">Actions</span>
-                    <div class="flex items-center gap-2">
-                    <button id="undoBtn" class="action-btn action-btn-icon" type="button" aria-label="Undo" title="Undo">
-                        <i class="fa-solid fa-rotate-left"></i>
-                    </button>
-                    <button id="redoBtn" class="action-btn action-btn-icon" type="button" aria-label="Redo" title="Redo">
-                        <i class="fa-solid fa-rotate-right"></i>
-                    </button>
-                    <button id="copySelectionBtn" class="action-btn action-btn-icon" type="button" aria-label="Copy Selection" title="Copy Selection" disabled>
-                        <i class="fa-regular fa-copy"></i>
-                    </button>
-                    <button id="clearBtn" class="action-btn action-btn-icon action-btn-danger" type="button" aria-label="Clear" title="Clear">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                        <div class="control-card control-stack flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label for="tolerance" class="control-label text-xs font-semibold app-muted">Sensitivity</label>
+                                <span id="toleranceVal" class="font-semibold text-amber-400 text-xs min-w-[3rem] text-right">2.0px</span>
+                            </div>
+                            <input type="range" id="tolerance" min="0.5" max="10.0" step="0.5" value="2.0" class="slider-compact w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                        </div>
+
+                        <div class="control-card control-stack flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="control-label text-xs font-semibold app-muted">Palette</span>
+                                <div class="flex items-center gap-2">
+                                    <button id="bgWhiteBtn" class="swatch-btn is-active" type="button" aria-label="White background" title="White background"></button>
+                                    <button id="bgBlackBtn" class="swatch-btn swatch-btn-dark" type="button" aria-label="Black background" title="Black background"></button>
+                                </div>
+                            </div>
+                            <div class="palette-grid" id="colorPalette"></div>
+                        </div>
+
+                        <div class="control-card control-stack flex flex-col gap-2 desktop-only">
+                            <span class="control-label text-xs font-semibold app-muted">Zoom</span>
+                            <div class="flex items-center gap-2">
+                                <button id="zoomOutBtn" class="action-btn action-btn-icon" type="button" aria-label="Zoom out" title="Zoom out">
+                                    <i class="fa-solid fa-minus"></i>
+                                </button>
+                                <span id="zoomLevelLabel" class="zoom-level-label">100%</span>
+                                <button id="zoomInBtn" class="action-btn action-btn-icon" type="button" aria-label="Zoom in" title="Zoom in">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <button id="zoomResetBtn" class="action-btn" type="button" title="Reset zoom">Reset</button>
+                            </div>
+                        </div>
+
+                        <div class="control-card control-stack flex flex-col gap-2">
+                            <span class="control-label text-xs font-semibold app-muted">Actions</span>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button id="undoBtn" class="action-btn action-btn-icon" type="button" aria-label="Undo" title="Undo">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                                <button id="redoBtn" class="action-btn action-btn-icon" type="button" aria-label="Redo" title="Redo">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                                <button id="duplicateBtn" class="action-btn action-btn-icon" type="button" aria-label="Duplicate" title="Duplicate (Ctrl+D)" disabled>
+                                    <i class="fa-solid fa-clone"></i>
+                                </button>
+                                <button id="copySelectionBtn" class="action-btn action-btn-icon" type="button" aria-label="Copy region" title="Copy region as PNG" disabled>
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                                <button id="clearBtn" class="action-btn action-btn-icon action-btn-danger" type="button" aria-label="Clear" title="Clear">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -124,9 +170,9 @@
     </main>
 
     <footer class="app-footer px-6 py-2.5 flex items-center justify-between text-xs app-muted select-none z-10">
-        <div><a href="https://quangle.cloud">Legos</a> 2026 - Geometry smoothing and smart shape drawing playground</div>
+        <div class="footer-brand desktop-only"><a href="https://quangle.cloud">Legos</a> 2026 - Geometry smoothing and smart shape drawing playground</div>
         <div id="statusConsole" class="status-inline text-right">Draw a stroke to get started.</div>
-        <div class="flex items-center space-x-4">
+        <div class="footer-links desktop-only flex items-center space-x-4">
             <a href="https://quangle.cloud/blog/thuat-toan-rut-gon-so-diem-tren-duong-polyline" class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> RDP</a>
             <a href="https://quangle.cloud/blog/thuat-toan-tu-khop-duong-cong-pj-schneider" class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> PJ Schneider</a>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Shape Normalizer</span>
