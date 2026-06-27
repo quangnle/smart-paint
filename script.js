@@ -39,6 +39,9 @@ const zoomLevelLabelMobile = document.getElementById('zoomLevelLabelMobile');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 const toolbarDrawer = document.getElementById('toolbarDrawer');
 const toolbarDrawerBackdrop = document.getElementById('toolbarDrawerBackdrop');
+const toolbarDrawerPanel = document.querySelector('.toolbar-drawer-panel');
+const desktopToolbarMount = document.getElementById('desktopToolbarMount');
+const headerControls = document.getElementById('headerControls');
 const closeDrawerBtn = document.getElementById('closeDrawerBtn');
 const activeToolBadge = document.getElementById('activeToolBadge');
 
@@ -507,7 +510,23 @@ function toggleToolbarDrawer() {
     else openToolbarDrawer();
 }
 
+function layoutToolbar() {
+    if (!headerControls || !toolbarDrawerPanel || !desktopToolbarMount) return;
+
+    if (isMobileViewport()) {
+        if (!toolbarDrawerPanel.contains(headerControls)) {
+            toolbarDrawerPanel.appendChild(headerControls);
+        }
+    } else {
+        closeToolbarDrawer();
+        if (!desktopToolbarMount.contains(headerControls)) {
+            desktopToolbarMount.appendChild(headerControls);
+        }
+    }
+}
+
 function resizeCanvases() {
+    layoutToolbar();
     dpr = window.devicePixelRatio || 1;
     const width = liveCanvas.parentElement.clientWidth;
     const height = liveCanvas.parentElement.clientHeight;
@@ -2057,6 +2076,7 @@ window.addEventListener('touchend', handleTouchEnd);
 window.addEventListener('touchcancel', handleTouchEnd);
 
 applyBackgroundTheme();
+layoutToolbar();
 initColorPalette();
 setTool('draw');
 updateZoomLabel();
