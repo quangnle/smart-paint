@@ -63,20 +63,22 @@
                         </div>
                     </div>
 
-                    <div class="control-card control-stack flex flex-col gap-2">
-                        <div class="flex items-center justify-between gap-2">
-                            <label for="brushSize" class="control-label text-xs font-semibold app-muted">Brush</label>
-                            <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">4px</span>
+                    <div class="control-card control-stack control-card-sliders flex flex-col gap-3">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label for="brushSize" class="control-label text-xs font-semibold app-muted">Brush</label>
+                                <span id="brushSizeVal" class="font-semibold text-indigo-400 text-xs min-w-[2.5rem] text-right">4px</span>
+                            </div>
+                            <input type="range" id="brushSize" min="2" max="30" value="4" class="slider-compact slider-fill w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                         </div>
-                        <input type="range" id="brushSize" min="2" max="30" value="4" class="slider-compact w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                    </div>
 
-                    <div class="control-card control-stack flex flex-col gap-2">
-                        <div class="flex items-center justify-between gap-2">
-                            <label for="tolerance" class="control-label text-xs font-semibold app-muted">Sensitivity</label>
-                            <span id="toleranceVal" class="font-semibold text-amber-400 text-xs min-w-[3rem] text-right">2.0px</span>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label for="tolerance" class="control-label text-xs font-semibold app-muted">Sensitivity</label>
+                                <span id="toleranceVal" class="font-semibold text-amber-400 text-xs min-w-[3rem] text-right">2.0px</span>
+                            </div>
+                            <input type="range" id="tolerance" min="0.5" max="10.0" step="0.5" value="2.0" class="slider-compact slider-fill w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
                         </div>
-                        <input type="range" id="tolerance" min="0.5" max="10.0" step="0.5" value="2.0" class="slider-compact w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
                     </div>
 
                     <div class="control-card control-stack flex flex-col gap-2">
@@ -145,6 +147,14 @@
                         <button id="insertTextBtn" class="action-btn" type="button">Insert</button>
                     </div>
                 </div>
+            </div>
+            <div id="mobileToolbarMount" class="mobile-toolbar-mount mobile-only">
+                <button id="mobileToolbarPrevBtn" class="mobile-toolbar-nav mobile-toolbar-nav-left" type="button" aria-label="Previous tools group">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button id="mobileToolbarNextBtn" class="mobile-toolbar-nav mobile-toolbar-nav-right" type="button" aria-label="Next tools group">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
             </div>
         </section>
     </main>

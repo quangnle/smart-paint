@@ -35,6 +35,9 @@ const zoomInBtnMobile = document.getElementById('zoomInBtnMobile');
 const zoomOutBtnMobile = document.getElementById('zoomOutBtnMobile');
 const zoomLevelLabelMobile = document.getElementById('zoomLevelLabelMobile');
 const desktopToolbarMount = document.getElementById('desktopToolbarMount');
+const mobileToolbarMount = document.getElementById('mobileToolbarMount');
+const mobileToolbarPrevBtn = document.getElementById('mobileToolbarPrevBtn');
+const mobileToolbarNextBtn = document.getElementById('mobileToolbarNextBtn');
 const headerControls = document.getElementById('headerControls');
 const activeToolBadge = document.getElementById('activeToolBadge');
 
@@ -495,11 +498,43 @@ function closeToolbarDrawer() {
 function toggleToolbarDrawer() {
 }
 
+function updateMobileToolbarNav() {
+    if (!headerControls || !mobileToolbarPrevBtn || !mobileToolbarNextBtn) return;
+
+    const isMobileToolbarActive = isMobileViewport() && mobileToolbarMount?.contains(headerControls);
+    const maxScrollLeft = Math.max(0, headerControls.scrollWidth - headerControls.clientWidth);
+    const canScroll = isMobileToolbarActive && maxScrollLeft > 4;
+
+    mobileToolbarPrevBtn.hidden = !canScroll;
+    mobileToolbarNextBtn.hidden = !canScroll;
+
+    if (!canScroll) return;
+
+    const scrollLeft = headerControls.scrollLeft;
+    mobileToolbarPrevBtn.disabled = scrollLeft <= 4;
+    mobileToolbarNextBtn.disabled = scrollLeft >= maxScrollLeft - 4;
+}
+
+function scrollMobileToolbar(direction) {
+    if (!headerControls || !isMobileViewport()) return;
+    const scrollAmount = Math.max(240, Math.round(headerControls.clientWidth * 0.88));
+    headerControls.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+}
+
 function layoutToolbar() {
-    if (!headerControls || !desktopToolbarMount) return;
+    if (!headerControls || !desktopToolbarMount || !mobileToolbarMount) return;
+    if (isMobileViewport()) {
+        if (!mobileToolbarMount.contains(headerControls)) {
+            mobileToolbarMount.appendChild(headerControls);
+        }
+        updateMobileToolbarNav();
+        return;
+    }
+
     if (!desktopToolbarMount.contains(headerControls)) {
         desktopToolbarMount.appendChild(headerControls);
     }
+    updateMobileToolbarNav();
 }
 
 function resizeCanvases() {
@@ -2073,6 +2108,9 @@ zoomSlider?.addEventListener('input', e => {
 });
 zoomInBtnMobile?.addEventListener('click', zoomIn);
 zoomOutBtnMobile?.addEventListener('click', zoomOut);
+mobileToolbarPrevBtn?.addEventListener('click', () => scrollMobileToolbar(-1));
+mobileToolbarNextBtn?.addEventListener('click', () => scrollMobileToolbar(1));
+headerControls?.addEventListener('scroll', updateMobileToolbarNav, { passive: true });
 
 window.addEventListener('resize', resizeCanvases);
 window.addEventListener('keydown', handleKeyboardShortcuts);
@@ -2101,3 +2139,4 @@ setTool('draw');
 zoomReset();
 updateActionButtons();
 resizeCanvases();
+updateMobileToolbarNav();
