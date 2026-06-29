@@ -29,20 +29,13 @@ const textSizeInput = document.getElementById('textSizeInput');
 const insertTextBtn = document.getElementById('insertTextBtn');
 const cancelTextBtn = document.getElementById('cancelTextBtn');
 const textPreview = document.getElementById('textPreview');
-const zoomInBtn = document.getElementById('zoomInBtn');
-const zoomOutBtn = document.getElementById('zoomOutBtn');
-const zoomResetBtn = document.getElementById('zoomResetBtn');
+const zoomSlider = document.getElementById('zoomSlider');
 const zoomLevelLabel = document.getElementById('zoomLevelLabel');
 const zoomInBtnMobile = document.getElementById('zoomInBtnMobile');
 const zoomOutBtnMobile = document.getElementById('zoomOutBtnMobile');
 const zoomLevelLabelMobile = document.getElementById('zoomLevelLabelMobile');
-const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-const toolbarDrawer = document.getElementById('toolbarDrawer');
-const toolbarDrawerBackdrop = document.getElementById('toolbarDrawerBackdrop');
-const toolbarDrawerPanel = document.querySelector('.toolbar-drawer-panel');
 const desktopToolbarMount = document.getElementById('desktopToolbarMount');
 const headerControls = document.getElementById('headerControls');
-const closeDrawerBtn = document.getElementById('closeDrawerBtn');
 const activeToolBadge = document.getElementById('activeToolBadge');
 
 const colors = [
@@ -174,18 +167,23 @@ function clampZoom(scale) {
 
 function updateZoomLabel() {
     const label = `${Math.round(viewport.scale * 100)}%`;
+    if (zoomSlider) zoomSlider.value = String(Math.round(viewport.scale * 100));
     if (zoomLevelLabel) zoomLevelLabel.textContent = label;
     if (zoomLevelLabelMobile) zoomLevelLabelMobile.textContent = label;
 }
 
-function zoomAt(factor, anchorScreenX, anchorScreenY) {
+function setZoomScale(nextScale, anchorScreenX = liveCanvas.clientWidth / 2, anchorScreenY = liveCanvas.clientHeight / 2) {
     const worldBefore = screenToWorld({ x: anchorScreenX, y: anchorScreenY });
-    const newScale = clampZoom(viewport.scale * factor);
-    viewport.scale = newScale;
-    viewport.offsetX = anchorScreenX - worldBefore.x * newScale;
-    viewport.offsetY = anchorScreenY - worldBefore.y * newScale;
+    const clampedScale = clampZoom(nextScale);
+    viewport.scale = clampedScale;
+    viewport.offsetX = anchorScreenX - worldBefore.x * clampedScale;
+    viewport.offsetY = anchorScreenY - worldBefore.y * clampedScale;
     updateZoomLabel();
     renderScene();
+}
+
+function zoomAt(factor, anchorScreenX, anchorScreenY) {
+    setZoomScale(viewport.scale * factor, anchorScreenX, anchorScreenY);
 }
 
 function zoomIn() {
@@ -489,39 +487,18 @@ function updateActiveToolBadge() {
 }
 
 function openToolbarDrawer() {
-    if (!toolbarDrawer) return;
-    toolbarDrawer.classList.add('is-open');
-    toolbarDrawer.setAttribute('aria-hidden', 'false');
-    if (mobileMenuBtn) mobileMenuBtn.setAttribute('aria-expanded', 'true');
-    document.body.classList.add('drawer-open');
 }
 
 function closeToolbarDrawer() {
-    if (!toolbarDrawer) return;
-    toolbarDrawer.classList.remove('is-open');
-    toolbarDrawer.setAttribute('aria-hidden', 'true');
-    if (mobileMenuBtn) mobileMenuBtn.setAttribute('aria-expanded', 'false');
-    document.body.classList.remove('drawer-open');
 }
 
 function toggleToolbarDrawer() {
-    if (!toolbarDrawer) return;
-    if (toolbarDrawer.classList.contains('is-open')) closeToolbarDrawer();
-    else openToolbarDrawer();
 }
 
 function layoutToolbar() {
-    if (!headerControls || !toolbarDrawerPanel || !desktopToolbarMount) return;
-
-    if (isMobileViewport()) {
-        if (!toolbarDrawerPanel.contains(headerControls)) {
-            toolbarDrawerPanel.appendChild(headerControls);
-        }
-    } else {
-        closeToolbarDrawer();
-        if (!desktopToolbarMount.contains(headerControls)) {
-            desktopToolbarMount.appendChild(headerControls);
-        }
+    if (!headerControls || !desktopToolbarMount) return;
+    if (!desktopToolbarMount.contains(headerControls)) {
+        desktopToolbarMount.appendChild(headerControls);
     }
 }
 
@@ -603,7 +580,6 @@ function setTool(tool) {
         logStatus('Crop mode is active. Drag to select a region, then copy as PNG.');
     }
 
-    if (toolbarDrawer?.classList.contains('is-open')) closeToolbarDrawer();
     renderScene();
 }
 
@@ -635,6 +611,40 @@ function unwrapBlockFormula(text) {
     if (/^\$\$[\s\S]+\$\$$/.test(trimmed)) return trimmed.slice(2, -2).trim();
     if (/^\\\[[\s\S]+\\\]$/.test(trimmed)) return trimmed.slice(2, -2).trim();
     return trimmed;
+}
+
+function parseTextBlocks(text) {
+    const blocks = [];
+    const regex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])/g;
+    let lastIndex = 0;
+    let match;
+
+    function pushTextLines(chunk) {
+        const lines = chunk.split(/\r?\n/);
+        lines.forEach((line, index) => {
+            if (index > 0 || line.length > 0) {
+                blocks.push({ type: 'text-line', content: line });
+            }
+        });
+    }
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            pushTextLines(text.slice(lastIndex, match.index));
+        }
+        blocks.push({ type: 'block-formula', content: unwrapBlockFormula(match[1]) });
+        lastIndex = match.index + match[1].length;
+    }
+
+    if (lastIndex < text.length) {
+        pushTextLines(text.slice(lastIndex));
+    }
+
+    if (!blocks.length) {
+        blocks.push({ type: 'text-line', content: '' });
+    }
+
+    return blocks;
 }
 
 function getFormulaMarkup(line) {
@@ -814,11 +824,23 @@ async function prepareTextRenderData(shape) {
         }
     }
 
-    const paragraphs = shape.text.split(/\r?\n/);
     const renderLines = [];
 
-    for (const paragraph of paragraphs) {
-        const wrapped = await buildWrappedLineSegments(paragraph, shape, maxWidth);
+    for (const block of parseTextBlocks(shape.text)) {
+        if (block.type === 'block-formula') {
+            const formulaBlock = await renderFormulaLine(block.content, shape.color, shape.fontSize, true);
+            if (formulaBlock) {
+                renderLines.push({
+                    type: 'rich-line',
+                    width: formulaBlock.width,
+                    height: formulaBlock.height,
+                    segments: [formulaBlock]
+                });
+            }
+            continue;
+        }
+
+        const wrapped = await buildWrappedLineSegments(block.content, shape, maxWidth);
         wrapped.forEach(wl => {
             renderLines.push({ type: 'rich-line', width: wl.width, height: wl.height, segments: wl.segments });
         });
@@ -1558,11 +1580,19 @@ async function updateTextPreview() {
             return;
         }
     }
-    const fragments = content.split(/\r?\n/);
-    for (const line of fragments) {
+    for (const block of parseTextBlocks(content)) {
         const div = document.createElement('div');
         div.style.minHeight = `${fontSize * 1.3}px`;
-        const segments = parseLineSegments(line);
+        if (block.type === 'block-formula') {
+            await waitForMathJax();
+            if (window.MathJax?.tex2svgPromise) {
+                div.appendChild(await window.MathJax.tex2svgPromise(block.content, { display: true }));
+                textPreview.appendChild(div);
+                continue;
+            }
+        }
+
+        const segments = parseLineSegments(block.content);
         for (const segment of segments) {
             if (segment.type === 'formula') {
                 await waitForMathJax();
@@ -1573,7 +1603,7 @@ async function updateTextPreview() {
             }
             div.appendChild(document.createTextNode(segment.content));
         }
-        if (!line) div.innerHTML = '&nbsp;';
+        if (!block.content) div.innerHTML = '&nbsp;';
         textPreview.appendChild(div);
     }
 }
@@ -1910,7 +1940,6 @@ function handleKeyboardShortcuts(e) {
     }
 
     if (!modifier && key === 'escape') {
-        if (toolbarDrawer.classList.contains('is-open')) closeToolbarDrawer();
         clearSelection();
         renderScene();
         return;
@@ -1951,7 +1980,7 @@ function handleKeyboardShortcuts(e) {
 }
 
 function handleWheel(e) {
-    if (!e.ctrlKey && !e.metaKey) return;
+    if (isMobileViewport() && !e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
     const screen = getScreenCoords(e);
     const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
@@ -2038,22 +2067,12 @@ cancelTextBtn.addEventListener('click', () => {
 textInput.addEventListener('input', () => { void updateTextPreview(); });
 textSizeInput.addEventListener('input', () => { void updateTextPreview(); });
 
-zoomInBtn?.addEventListener('click', zoomIn);
-zoomOutBtn?.addEventListener('click', zoomOut);
-zoomResetBtn?.addEventListener('click', zoomReset);
+zoomSlider?.addEventListener('input', e => {
+    const nextScale = (parseInt(e.target.value, 10) || 100) / 100;
+    setZoomScale(nextScale);
+});
 zoomInBtnMobile?.addEventListener('click', zoomIn);
 zoomOutBtnMobile?.addEventListener('click', zoomOut);
-
-mobileMenuBtn?.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleToolbarDrawer();
-});
-toolbarDrawerBackdrop?.addEventListener('click', closeToolbarDrawer);
-closeDrawerBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    closeToolbarDrawer();
-});
 
 window.addEventListener('resize', resizeCanvases);
 window.addEventListener('keydown', handleKeyboardShortcuts);
@@ -2079,6 +2098,6 @@ applyBackgroundTheme();
 layoutToolbar();
 initColorPalette();
 setTool('draw');
-updateZoomLabel();
+zoomReset();
 updateActionButtons();
 resizeCanvases();
