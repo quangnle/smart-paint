@@ -744,6 +744,63 @@ ls_ob = segment(O, B)`
                 globalPoints[name] = { x: pointVal.x, y: pointVal.y };
             }
 
+            const POINT_MATCH_EPS = 1e-4;
+
+            function assignPointSetWithAnchorMatching(outs, items) {
+                if (outs.length !== items.length) {
+                    throw new Error(`Biểu thức trả về ${items.length} giao điểm, nhưng vế trái có ${outs.length} biến`);
+                }
+
+                const usedItemIndices = new Set();
+                const assignments = new Array(outs.length).fill(null);
+
+                outs.forEach((name, outIdx) => {
+                    const existing = runtimeScope[name];
+                    if (!existing || existing.type !== 'Point') return;
+
+                    let bestIdx = -1;
+                    let bestDist = Infinity;
+                    items.forEach((item, itemIdx) => {
+                        if (usedItemIndices.has(itemIdx)) return;
+                        const dist = distanceBetween(existing, item);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestIdx = itemIdx;
+                        }
+                    });
+
+                    if (bestIdx === -1) return;
+
+                    if (bestDist > POINT_MATCH_EPS) {
+                        throw new Error(
+                            `Điểm "${name}" đã được định nghĩa nhưng không trùng giao điểm nào (khoảng cách gần nhất: ${bestDist.toExponential(2)})`
+                        );
+                    }
+
+                    assignments[outIdx] = items[bestIdx];
+                    usedItemIndices.add(bestIdx);
+                });
+
+                const remainingItemIndices = items
+                    .map((_, idx) => idx)
+                    .filter(idx => !usedItemIndices.has(idx));
+                const remainingOutIndices = outs
+                    .map((_, idx) => idx)
+                    .filter(idx => assignments[idx] === null);
+
+                if (remainingOutIndices.length !== remainingItemIndices.length) {
+                    throw new Error('Không thể gán giao điểm: số biến và số giao điểm không khớp sau khi khớp điểm neo');
+                }
+
+                remainingOutIndices.forEach((outIdx, k) => {
+                    assignments[outIdx] = items[remainingItemIndices[k]];
+                });
+
+                outs.forEach((name, idx) => {
+                    assignConstructedPoint(name, assignments[idx]);
+                });
+            }
+
             function flattenRenderableItems(items) {
                 return items.flatMap(item => {
                     if (!item) return [];
@@ -1942,14 +1999,7 @@ ls_ob = segment(O, B)`
                                 } else if (outs.length !== val.items.length) {
                                     throw new Error(`Biểu thức trả về ${val.items.length} giao điểm, nhưng vế trái có ${outs.length} biến`);
                                 } else {
-                                    val.items.forEach((pointVal, idx) => {
-                                        const name = outs[idx];
-                                        pointVal.name = name;
-                                        pointVal.isFree = false;
-                                        runtimeScope[name] = pointVal;
-                                        dependentPoints.push(pointVal);
-                                        globalPoints[name] = { x: pointVal.x, y: pointVal.y };
-                                    });
+                                    assignPointSetWithAnchorMatching(outs, val.items);
                                 }
                             } else if (val && val.type === 'CircleConstruction') {
                                 const { center, circle, centerName } = val;
@@ -2829,6 +2879,7 @@ ${problemText}
 7. End with render(...) listing the objects to display.
 8. Use meaningful point names matching the problem (A, B, C, O, M, ...).
 9. Free points: A, B = points(free). Dependent points via construction commands.
+10. When intersect() returns multiple points, names already defined on the left are matched to the corresponding intersection by position; remaining names get the other intersections in geometric order. Example: A, E = intersect(line(A, H), circumcircle) keeps A at the existing vertex and assigns E to the other intersection.
 
 Write the complete Geo-DSL program now:`;
             }
@@ -2852,6 +2903,7 @@ ${problemText}
 7. Kết thúc bằng render(...) liệt kê các đối tượng cần hiển thị.
 8. Đặt tên điểm khớp đề bài (A, B, C, O, M, ...).
 9. Điểm tự do: A, B = points(free). Điểm phụ thuộc dựng bằng lệnh hình học.
+10. Khi intersect() trả về nhiều điểm, tên đã định nghĩa ở vế trái được khớp theo vị trí với giao điểm tương ứng; tên còn lại nhận các giao điểm khác theo thứ tự hình học. Ví dụ: A, E = intersect(line(A, H), đường tròn ngoại tiếp) giữ A tại đỉnh cũ và gán E cho giao điểm còn lại.
 
 Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
         }

@@ -322,15 +322,15 @@
         {
           "syntax": "P, Q = intersect(c1, c2)",
           "description": {
-            "vi": "Giao điểm của 2 đường tròn.",
-            "en": "Intersection points of two circles."
+            "vi": "Giao điểm của 2 đường tròn. Tên đã định nghĩa ở vế trái được khớp theo vị trí; tên mới nhận giao điểm còn lại.",
+            "en": "Intersection points of two circles. Names already defined on the left are matched by position; new names receive the remaining intersections."
           }
         },
         {
           "syntax": "P, Q = intersect(line(A, B), c)",
           "description": {
-            "vi": "Giao điểm của đường thẳng và đường tròn.",
-            "en": "Intersection points of a line and a circle."
+            "vi": "Giao điểm của đường thẳng và đường tròn. Tên đã định nghĩa (ví dụ A) được neo theo vị trí; tên còn lại nhận giao điểm kia.",
+            "en": "Intersection points of a line and a circle. Already-defined names (e.g. A) are anchored by position; the remaining name gets the other intersection."
           }
         },
         {
