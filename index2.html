@@ -52,6 +52,45 @@
             background: rgba(15, 15, 21, 0.82);
             backdrop-filter: blur(6px);
         }
+        .editor-shell {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            background: #11111b;
+            border: 1px solid #313244;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .editor-shell:focus-within {
+            border-color: #89b4fa;
+        }
+        #editor-line-numbers {
+            flex: 0 0 auto;
+            min-width: 2.75rem;
+            padding: 1rem 0.5rem 1rem 0.75rem;
+            margin: 0;
+            background: #0d0d14;
+            color: #6c7086;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.875rem;
+            line-height: 1.625;
+            text-align: right;
+            overflow: hidden;
+            user-select: none;
+            white-space: pre;
+        }
+        #editor {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            border-radius: 0;
+            resize: none;
+            white-space: pre;
+            overflow-wrap: normal;
+            word-wrap: normal;
+            tab-size: 2;
+            line-height: 1.625;
+        }
     </style>
 </head>
 <body class="bg-[#11111b] text-[#cdd6f4] font-sans h-screen flex flex-col overflow-hidden">
@@ -82,8 +121,11 @@
             </div>
             
             <!-- Code Area -->
-            <div class="flex-1 flex flex-col p-4 relative">
-                <textarea id="editor" class="flex-1 bg-[#11111b] text-[#a6e3a1] font-mono p-4 rounded-lg border border-[#313244] focus:outline-none focus:border-[#89b4fa] resize-none leading-relaxed text-sm" placeholder="// Nhập mã lệnh hình học tại đây..."></textarea>
+            <div class="flex-1 flex flex-col p-4 relative min-h-0">
+                <div class="editor-shell">
+                    <pre id="editor-line-numbers" aria-hidden="true">1</pre>
+                    <textarea id="editor" class="bg-[#11111b] text-[#a6e3a1] font-mono p-4 focus:outline-none leading-relaxed text-sm" spellcheck="false" placeholder="// Nhập mã lệnh hình học tại đây..."></textarea>
+                </div>
                 
                 <!-- Error Log / Compiler Output -->
                 <div id="error-log" class="hidden mt-4 p-3 bg-[#f38ba8]/10 border border-[#f38ba8]/30 rounded-lg text-xs text-[#f38ba8] font-mono">
@@ -2780,12 +2822,13 @@ ${problemText}
 === OUTPUT REQUIREMENTS ===
 1. Output ONLY Geo-DSL code. No markdown fences, no explanation outside comments.
 2. Use ONLY commands from the syntax reference above.
-3. Add comments for each logical step of the problem (map comments to problem parts).
-4. NEVER use inline comments. Every comment must be on its own line above the related command(s).
-5. NEVER break a single command across multiple lines. Each statement must be exactly one line (including render(...), len_group(...), color_group(...), etc.).
-6. End with render(...) listing the objects to display.
-7. Use meaningful point names matching the problem (A, B, C, O, M, ...).
-8. Free points: A, B = points(free). Dependent points via construction commands.
+3. Comments use // at the beginning of a line. Example: // Construct triangle ABC
+4. Add a separate // comment line for each logical step of the problem.
+5. NEVER use inline comments. Do not put // on the same line as a command.
+6. NEVER break a single command across multiple lines. Each statement must be exactly one line (including render(...), len_group(...), color_group(...), etc.).
+7. End with render(...) listing the objects to display.
+8. Use meaningful point names matching the problem (A, B, C, O, M, ...).
+9. Free points: A, B = points(free). Dependent points via construction commands.
 
 Write the complete Geo-DSL program now:`;
             }
@@ -2802,12 +2845,13 @@ ${problemText}
 === YÊU CẦU ĐẦU RA ===
 1. Chỉ xuất mã Geo-DSL. Không dùng markdown fence, không giải thích ngoài comment.
 2. Chỉ dùng các lệnh có trong tài liệu cú pháp ở trên.
-3. Thêm comment cho từng ý / bước của đề bài (comment tương ứng từng phần đề).
-4. TUYỆT ĐỐI không dùng inline comment. Mỗi comment phải nằm trên một dòng riêng, phía trên lệnh liên quan.
-5. TUYỆT ĐỐI không xuống dòng giữa một câu lệnh. Mỗi lệnh phải nằm trọn trên một dòng (kể cả render(...), len_group(...), color_group(...), ...).
-6. Kết thúc bằng render(...) liệt kê các đối tượng cần hiển thị.
-7. Đặt tên điểm khớp đề bài (A, B, C, O, M, ...).
-8. Điểm tự do: A, B = points(free). Điểm phụ thuộc dựng bằng lệnh hình học.
+3. Comment dùng // ở đầu dòng. Ví dụ: // Dựng tam giác ABC
+4. Thêm một dòng comment // riêng cho từng ý / bước của đề bài.
+5. TUYỆT ĐỐI không dùng inline comment. Không viết // trên cùng dòng với lệnh.
+6. TUYỆT ĐỐI không xuống dòng giữa một câu lệnh. Mỗi lệnh phải nằm trọn trên một dòng (kể cả render(...), len_group(...), color_group(...), ...).
+7. Kết thúc bằng render(...) liệt kê các đối tượng cần hiển thị.
+8. Đặt tên điểm khớp đề bài (A, B, C, O, M, ...).
+9. Điểm tự do: A, B = points(free). Điểm phụ thuộc dựng bằng lệnh hình học.
 
 Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
         }
@@ -2928,6 +2972,7 @@ Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
         // Chuyển đổi qua lại các preset mẫu đề bài
         function loadPreset(key) {
             document.getElementById('editor').value = presets[key];
+            updateEditorLineNumbers();
             // Reset tọa độ điểm về ban đầu khi đổi bài tránh chồng lấn
             if (key === 'preset1') {
                 globalPoints = {
@@ -2945,9 +2990,80 @@ Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
             runCode();
         }
 
+        function updateEditorLineNumbers() {
+            const editor = document.getElementById('editor');
+            const gutter = document.getElementById('editor-line-numbers');
+            if (!editor || !gutter) return;
+            const lineCount = Math.max(1, editor.value.split('\n').length);
+            gutter.textContent = Array.from({ length: lineCount }, (_, idx) => idx + 1).join('\n');
+        }
+
+        function syncEditorLineNumberScroll() {
+            const editor = document.getElementById('editor');
+            const gutter = document.getElementById('editor-line-numbers');
+            if (!editor || !gutter) return;
+            gutter.scrollTop = editor.scrollTop;
+        }
+
+        function normalizePastedCode(text) {
+            let cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            cleaned = cleaned.replace(/^\uFEFF/, '');
+            const trimmed = cleaned.trim();
+            if (trimmed.startsWith('```')) {
+                cleaned = trimmed.replace(/^```[a-zA-Z0-9_-]*\n?/, '').replace(/\n?```$/, '');
+            } else {
+                cleaned = trimmed;
+            }
+            if (!cleaned.includes('\n') && cleaned.includes('\\n')) {
+                cleaned = cleaned.replace(/\\n/g, '\n');
+            }
+            return cleaned.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        }
+
+        function extractTextFromHtmlClipboard(html) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            return (doc.body?.innerText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        }
+
+        function insertTextAtCursor(textarea, text) {
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end = textarea.selectionEnd ?? textarea.value.length;
+            const before = textarea.value.slice(0, start);
+            const after = textarea.value.slice(end);
+            textarea.value = `${before}${text}${after}`;
+            const cursor = start + text.length;
+            textarea.selectionStart = cursor;
+            textarea.selectionEnd = cursor;
+            updateEditorLineNumbers();
+        }
+
+        function setupEditorEnhancements() {
+            const editor = document.getElementById('editor');
+            if (!editor) return;
+
+            updateEditorLineNumbers();
+
+            editor.addEventListener('input', updateEditorLineNumbers);
+            editor.addEventListener('scroll', syncEditorLineNumberScroll);
+
+            editor.addEventListener('paste', (event) => {
+                let plainText = event.clipboardData?.getData('text/plain') || '';
+                const htmlText = event.clipboardData?.getData('text/html');
+                if (htmlText && !plainText.includes('\n')) {
+                    const extracted = extractTextFromHtmlClipboard(htmlText);
+                    if (extracted.includes('\n')) {
+                        plainText = extracted;
+                    }
+                }
+                event.preventDefault();
+                insertTextAtCursor(editor, normalizePastedCode(plainText));
+            });
+        }
+
         // Khởi động mặc định lần đầu tải trang
         window.onload = () => {
             applyUiLanguage();
+            setupEditorEnhancements();
             updateZoomDisplay();
             loadPreset('preset1');
         };
