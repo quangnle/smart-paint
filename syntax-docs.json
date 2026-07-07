@@ -80,15 +80,8 @@
         {
           "syntax": "M = midpoint(B, C)",
           "description": {
-            "vi": "Trung điểm của đoạn BC, tự nhận nhóm vạch riêng.",
-            "en": "Midpoint of segment BC, automatically assigned its own tick-mark group."
-          }
-        },
-        {
-          "syntax": "N = midpoint(D, E, 2)",
-          "description": {
-            "vi": "Trung điểm với 2 vạch để phân biệt nhóm.",
-            "en": "Midpoint marked with 2 ticks to distinguish its group."
+            "vi": "Trung điểm của đoạn BC.",
+            "en": "Midpoint of segment BC."
           }
         },
         {
@@ -143,8 +136,8 @@
         {
           "syntax": "G = on(ray(H, K), segment(H, K) = segment(H, G))",
           "description": {
-            "vi": "Dựng G trên tia HK sao cho HG = HK, tự đánh dấu hai đoạn bằng nhau.",
-            "en": "Construct G on ray HK so that HG = HK, and automatically mark the two equal segments."
+            "vi": "Dựng G trên tia HK sao cho HG = HK.",
+            "en": "Construct G on ray HK so that HG = HK."
           }
         },
         {
@@ -169,17 +162,31 @@
           }
         },
         {
-          "syntax": "equal(segment(A, K), segment(B, H))",
+          "syntax": "gr_len1 = len_group(segment(A, B), segment(B, C), segment(M, N), \"//\")",
           "description": {
-            "vi": "Đánh dấu 2 đoạn bằng nhau, tự nhận số vạch theo nhóm.",
-            "en": "Mark two equal segments and assign tick counts automatically by group."
+            "vi": "Tạo nhóm đoạn bằng nhau với ký hiệu tùy chọn (chỉ dùng /, |, x, *).",
+            "en": "Create a group of equal-length segments with a custom symbol (only /, |, x, * allowed)."
           }
         },
         {
-          "syntax": "equal(segment(M, N), segment(P, Q), 2)",
+          "syntax": "s_render(gr_len1)",
           "description": {
-            "vi": "Đánh dấu 2 đoạn bằng nhau với 2 vạch cố định.",
-            "en": "Mark two equal segments with a fixed 2-tick style."
+            "vi": "Vẽ ký hiệu đánh dấu cho các nhóm len_group đã khai báo.",
+            "en": "Draw marker symbols for declared len_group groups."
+          }
+        },
+        {
+          "syntax": "gr_c = color_group(segment(A, B), line(C, D), poly, circle(O, 50), \"#123ABC\")",
+          "description": {
+            "vi": "Tạo nhóm đối tượng hình học với màu tùy chọn (#RGB hoặc #RRGGBB).",
+            "en": "Create a geometry group with a custom color (#RGB or #RRGGBB)."
+          }
+        },
+        {
+          "syntax": "c_render(gr_c)",
+          "description": {
+            "vi": "Vẽ các đối tượng trong color_group bằng màu đã khai báo thay cho màu chuẩn.",
+            "en": "Draw color_group objects using their declared color instead of the default palette."
           }
         },
         {

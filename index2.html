@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geo-DSL: Trình dựng hình học phẳng bằng mã lệnh</title>
+    <title id="page-title">Geo-DSL: Trình dựng hình học phẳng bằng mã lệnh</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -62,10 +62,11 @@
             <span class="text-2xl">📐</span>
             <div>
                 <h1 class="text-lg font-bold text-white tracking-wide">Geo-DSL Studio</h1>
-                <p class="text-xs text-[#a6adc8]">Trình khai báo dựng hình phẳng bằng mã lệnh tự nhiên</p>
+                <p id="app-subtitle" class="text-xs text-[#a6adc8]">Trình khai báo dựng hình phẳng bằng mã lệnh tự nhiên</p>
             </div>
         </div>
         <div class="flex items-center space-x-4">
+            <div id="ui-language-switch" class="flex items-center gap-1"></div>
             <span class="text-xs bg-[#313244] px-2.5 py-1 rounded-md text-[#f38ba8] font-mono border border-[#f38ba8]/20">v1.0.0 (MVP)</span>
         </div>
     </header>
@@ -76,7 +77,7 @@
         <!-- Left Panel: Code Editor -->
         <section class="w-[36%] min-w-[340px] max-w-[540px] border-r border-[#313244] bg-[#1e1e2e] flex flex-col h-full">
             <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center">
-                <span class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Trình soạn thảo mã lệnh</span>
+                <span id="editor-panel-title" class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Trình soạn thảo mã lệnh</span>
             </div>
             
             <!-- Code Area -->
@@ -90,12 +91,12 @@
             </div>
 
             <!-- Execution Panel -->
-            <div class="p-4 bg-[#181825] border-t border-[#313244] flex items-center justify-between">
-                <div class="text-xs text-[#bac2de]">
+            <div class="p-4 bg-[#181825] border-t border-[#313244] flex items-center justify-between gap-3">
+                <div id="drag-hint" class="text-xs text-[#bac2de]">
                     💡 Kéo thả điểm màu <span class="text-[#89b4fa] font-bold">Xanh</span> trên hình để thay đổi.
                 </div>
-                <button onclick="runCode()" class="bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-bold px-5 py-2 rounded-lg text-sm transition shadow-lg flex items-center space-x-2">
-                    <span>⚡ Chạy mã lệnh</span>
+                <button onclick="runCode()" class="bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-bold px-5 py-2 rounded-lg text-sm transition shadow-lg flex items-center space-x-2 shrink-0">
+                    <span id="run-button-label">⚡ Chạy mã lệnh</span>
                 </button>
             </div>
 
@@ -113,13 +114,13 @@
         <!-- Right Panel: Interactive Canvas -->
         <section class="flex-1 flex flex-col h-full bg-[#11111b] min-w-0">
             <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center">
-                <span class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Hình ảnh hình học trực quan</span>
+                <span id="canvas-panel-title" class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Hình ảnh hình học trực quan</span>
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2">
                         <button onclick="zoomOut()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">−</button>
                         <span class="text-xs text-[#f9e2af] font-mono min-w-[52px] text-center" id="zoom-level">100%</span>
                         <button onclick="zoomIn()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">+</button>
-                        <button onclick="resetZoom()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">Reset</button>
+                        <button id="zoom-reset-button" onclick="resetZoom()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">Reset</button>
                     </div>
                     <span class="text-xs text-[#a6adc8]" id="coords-tooltip">Tọa độ: (0, 0)</span>
                 </div>
@@ -234,7 +235,62 @@ ls_ob = segment(O, B)`
         let syntaxDocsData = null;
         let syntaxDocsActiveCategory = 'all';
         let syntaxDocsSearchTerm = '';
-        let syntaxDocsLanguage = 'vi';
+        let uiLanguage = localStorage.getItem('geo-dsl-ui-language') || 'vi';
+
+        const UI_TEXT = {
+            vi: {
+                pageTitle: 'Geo-DSL: Trình dựng hình học phẳng bằng mã lệnh',
+                appSubtitle: 'Trình khai báo dựng hình phẳng bằng mã lệnh tự nhiên',
+                editorPanelTitle: 'Trình soạn thảo mã lệnh',
+                editorPlaceholder: '// Nhập mã lệnh hình học tại đây...',
+                dragHintHtml: '💡 Kéo thả điểm màu <span class="text-[#89b4fa] font-bold">Xanh</span> trên hình để thay đổi.',
+                runButton: '⚡ Chạy mã lệnh',
+                canvasPanelTitle: 'Hình ảnh hình học trực quan',
+                zoomReset: 'Đặt lại',
+                coordsLabel: 'Tọa độ',
+                compileErrorPrefix: '⚠️ Lỗi dịch:',
+                languageVi: 'VI',
+                languageEn: 'EN',
+                openButton: 'Mở tra cứu',
+                panelTitle: '📖 Tài liệu cú pháp',
+                panelDescription: 'Tra cứu theo category, tìm kiếm nhanh và xem ví dụ trong popup.',
+                modalTitle: 'Tra cứu cú pháp',
+                modalDescription: 'Tài liệu được nạp từ file JSON riêng và có thể tìm kiếm theo nhóm.',
+                closeButton: 'Đóng',
+                searchPlaceholder: 'Tìm theo cú pháp hoặc mô tả...',
+                allCategory: 'Tất cả',
+                loading: 'Đang tải tài liệu cú pháp...',
+                loadError: 'Không tải được file syntax-docs.json. Hãy mở trang từ workspace hiện tại để dùng tra cứu.',
+                emptyResult: 'Không có mục nào khớp với từ khóa hoặc category đang chọn.',
+                itemCount: 'mục'
+            },
+            en: {
+                pageTitle: 'Geo-DSL: Planar geometry builder',
+                appSubtitle: 'Declarative planar geometry construction studio',
+                editorPanelTitle: 'Code editor',
+                editorPlaceholder: '// Enter geometry commands here...',
+                dragHintHtml: '💡 Drag <span class="text-[#89b4fa] font-bold">blue</span> points on the canvas to adjust the figure.',
+                runButton: '⚡ Run code',
+                canvasPanelTitle: 'Geometry canvas',
+                zoomReset: 'Reset',
+                coordsLabel: 'Coords',
+                compileErrorPrefix: '⚠️ Compile error:',
+                languageVi: 'VI',
+                languageEn: 'EN',
+                openButton: 'Open reference',
+                panelTitle: '📖 Syntax reference',
+                panelDescription: 'Browse by category, search quickly, and inspect examples in the popup.',
+                modalTitle: 'Syntax reference',
+                modalDescription: 'Reference content is loaded from a separate JSON file and can be searched by group.',
+                closeButton: 'Close',
+                searchPlaceholder: 'Search by syntax or description...',
+                allCategory: 'All',
+                loading: 'Loading syntax reference...',
+                loadError: 'Could not load syntax-docs.json. Open the page from this workspace to use the reference.',
+                emptyResult: 'No entries match the current keyword or category.',
+                itemCount: 'items'
+            }
+        };
 
         // ----------------- PARSER ENGINE -----------------
 
@@ -274,6 +330,9 @@ ls_ob = segment(O, B)`
             if (!match) {
                 if (/^-?\d+(\.\d+)?$/.test(str)) {
                     return { type: 'Number', value: parseFloat(str) };
+                }
+                if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+                    return { type: 'String', value: str.slice(1, -1) };
                 }
                 return { type: 'Identifier', name: str };
             }
@@ -354,8 +413,9 @@ ls_ob = segment(O, B)`
             const freePoints = [];
             const dependentPoints = [];
             let currentAssignmentName = null;
-            let relationMarkerGroupCounter = 0;
             let renderSelection = null;
+            let symbolRenderGroups = [];
+            let colorRenderGroups = [];
 
             function getSpecArg(argNode) {
                 if (!argNode) return 'free';
@@ -448,14 +508,6 @@ ls_ob = segment(O, B)`
                 return circle;
             }
 
-            function nextRelationMarkerCount(explicitCount = null) {
-                if (typeof explicitCount === 'number') {
-                    return Math.max(1, Math.round(explicitCount));
-                }
-                relationMarkerGroupCounter += 1;
-                return relationMarkerGroupCounter;
-            }
-
             function toRadians(deg) {
                 return deg * Math.PI / 180;
             }
@@ -469,6 +521,19 @@ ls_ob = segment(O, B)`
                 };
                 if (presets[count]) return presets[count];
                 return Array.from({ length: count }, (_, idx) => ({ x: 100 + idx * 50, y: 100 + idx * 30 }));
+            }
+
+            function validateLenGroupSymbol(symbol) {
+                if (!symbol || !/^[\/|x*]+$/.test(symbol)) {
+                    throw new Error('Ký hiệu len_group() chỉ được dùng các ký tự /, |, x, *');
+                }
+            }
+
+            function validateColorString(color) {
+                if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color)) {
+                    throw new Error('Màu color_group() phải dạng #RGB hoặc #RRGGBB, ví dụ "#123ABC"');
+                }
+                return color;
             }
 
             function solveIncenter(a, b, c) {
@@ -605,12 +670,6 @@ ls_ob = segment(O, B)`
                     }
                     return [item];
                 });
-            }
-
-            function buildEqualSegmentsMarker(segments, count = 1) {
-                const marker = { type: 'EqualSegments', segments, count };
-                renderElements.push(marker);
-                return marker;
             }
 
             function solveLineLikeIntersection(first, second) {
@@ -808,6 +867,9 @@ ls_ob = segment(O, B)`
                 if (node.type === 'Number') {
                     return { type: 'Number', value: node.value };
                 }
+                if (node.type === 'String') {
+                    return { type: 'String', value: node.value };
+                }
                 if (node.type === 'Equality') {
                     return {
                         type: 'EqualityExpr',
@@ -883,8 +945,7 @@ ls_ob = segment(O, B)`
                 }
 
                 return {
-                    length: Math.abs(actualTerm.factor / templateTerm.factor) * distanceBetween(actualTerm.segment.p1, actualTerm.segment.p2),
-                    equalMarkerSegment: Math.abs(actualTerm.factor - templateTerm.factor) < 1e-9 ? actualTerm.segment : null
+                    length: Math.abs(actualTerm.factor / templateTerm.factor) * distanceBetween(actualTerm.segment.p1, actualTerm.segment.p2)
                 };
             }
 
@@ -962,11 +1023,9 @@ ls_ob = segment(O, B)`
                     };
                 }
                 let length = len * 1.15;
-                let equalMarkerSegment = null;
                 if (distanceArg?.type === 'EqualityExpr') {
                     const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
                     length = resolved.length;
-                    equalMarkerSegment = resolved.equalMarkerSegment;
                 }
                 const point = {
                     type: 'Point',
@@ -975,12 +1034,6 @@ ls_ob = segment(O, B)`
                     isDraggable: true,
                     dragConstraint: { type: 'ray', originName: origin.name, directionName: directionPoint.name }
                 };
-                if (equalMarkerSegment) {
-                    buildEqualSegmentsMarker([
-                        { type: 'Segment', p1: origin, p2: point },
-                        equalMarkerSegment
-                    ], nextRelationMarkerCount());
-                }
                 return point;
             }
 
@@ -1010,11 +1063,9 @@ ls_ob = segment(O, B)`
                     };
                 }
                 let length = len * 1.15;
-                let equalMarkerSegment = null;
                 if (distanceArg?.type === 'EqualityExpr') {
                     const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
                     length = resolved.length;
-                    equalMarkerSegment = resolved.equalMarkerSegment;
                 } else if (hasFixedDistance) {
                     length = getDistanceArg(origin, distanceArg, fnName);
                 }
@@ -1027,17 +1078,6 @@ ls_ob = segment(O, B)`
                         ? { type: 'line', p1Name: origin.name, p2Name: directionPoint.name }
                         : null
                 };
-                if (equalMarkerSegment) {
-                    buildEqualSegmentsMarker([
-                        { type: 'Segment', p1: origin, p2: point },
-                        equalMarkerSegment
-                    ], nextRelationMarkerCount());
-                } else if (distanceArg?.type === 'Segment') {
-                    buildEqualSegmentsMarker([
-                        { type: 'Segment', p1: origin, p2: point },
-                        distanceArg
-                    ], nextRelationMarkerCount());
-                }
                 return point;
             }
 
@@ -1296,17 +1336,13 @@ ls_ob = segment(O, B)`
                 if (name === 'midpoint') {
                     const p1 = args[0];
                     const p2 = args[1];
-                    const markerCountArg = args[2];
                     if (p1?.type !== 'Point' || p2?.type !== 'Point') {
                         throw new Error("Hàm midpoint() cần 2 tham số đầu vào là các điểm");
                     }
-                    const markerCount = nextRelationMarkerCount(markerCountArg?.type === 'Number' ? markerCountArg.value : null);
                     return {
                         type: 'Point',
                         x: (p1.x + p2.x) / 2,
-                        y: (p1.y + p2.y) / 2,
-                        specialRole: 'midpoint',
-                        markerData: { p1, p2, count: markerCount }
+                        y: (p1.y + p2.y) / 2
                     };
                 }
                 if (name === 'distance') {
@@ -1551,18 +1587,77 @@ ls_ob = segment(O, B)`
                     }
                     throw new Error('Hàm intersect() hiện hỗ trợ giao của hai đường, hai đường tròn, hoặc đường với đường tròn');
                 }
-                if (name === 'equal' || name === 'mark_equal') {
-                    const first = args[0];
-                    const second = args[1];
-                    const countArg = args[2];
-                    if (first?.type !== 'Segment' || second?.type !== 'Segment') {
-                        throw new Error('Hàm equal() cần 2 đoạn thẳng dạng segment(...)');
+                if (name === 'len_group') {
+                    if (args.length < 2) {
+                        throw new Error('Hàm len_group() cần ít nhất một đoạn và một ký hiệu chuỗi');
                     }
-                    const count = nextRelationMarkerCount(countArg?.type === 'Number' ? countArg.value : null);
-                    return buildEqualSegmentsMarker([first, second], count);
+                    const symbolArg = args[args.length - 1];
+                    if (symbolArg?.type !== 'String') {
+                        throw new Error('Tham số cuối của len_group() phải là chuỗi ký hiệu, ví dụ "//"');
+                    }
+                    const segments = args.slice(0, -1);
+                    if (segments.length === 0) {
+                        throw new Error('len_group() cần ít nhất một đoạn segment(...)');
+                    }
+                    segments.forEach((seg, idx) => {
+                        if (seg?.type !== 'Segment') {
+                            throw new Error(`Tham số thứ ${idx + 1} của len_group() phải là segment(...)`);
+                        }
+                    });
+                    validateLenGroupSymbol(symbolArg.value);
+                    return {
+                        type: 'LenGroup',
+                        segments,
+                        symbol: symbolArg.value
+                    };
                 }
                 if (name === 'render') {
                     return { type: 'RenderSelection', items: flattenRenderableItems(args) };
+                }
+                if (name === 's_render') {
+                    if (args.length === 0) {
+                        throw new Error('Hàm s_render() cần ít nhất một nhóm len_group(...)');
+                    }
+                    args.forEach((arg, idx) => {
+                        if (arg?.type !== 'LenGroup') {
+                            throw new Error(`Tham số thứ ${idx + 1} của s_render() phải là nhóm len_group(...)`);
+                        }
+                    });
+                    return { type: 'SymbolRenderSelection', groups: args };
+                }
+                if (name === 'color_group') {
+                    if (args.length < 2) {
+                        throw new Error('Hàm color_group() cần ít nhất một đối tượng hình học và một màu');
+                    }
+                    const colorArg = args[args.length - 1];
+                    if (colorArg?.type !== 'String') {
+                        throw new Error('Tham số cuối của color_group() phải là chuỗi màu, ví dụ "#123ABC"');
+                    }
+                    const items = args.slice(0, -1);
+                    if (items.length === 0) {
+                        throw new Error('color_group() cần ít nhất một đối tượng hình học');
+                    }
+                    items.forEach((item, idx) => {
+                        if (!isColorGroupGeometry(item)) {
+                            throw new Error(`Tham số thứ ${idx + 1} của color_group() phải là segment, line, ray, circle hoặc polygon`);
+                        }
+                    });
+                    return {
+                        type: 'ColorGroup',
+                        items,
+                        color: validateColorString(colorArg.value)
+                    };
+                }
+                if (name === 'c_render') {
+                    if (args.length === 0) {
+                        throw new Error('Hàm c_render() cần ít nhất một nhóm color_group(...)');
+                    }
+                    args.forEach((arg, idx) => {
+                        if (arg?.type !== 'ColorGroup') {
+                            throw new Error(`Tham số thứ ${idx + 1} của c_render() phải là nhóm color_group(...)`);
+                        }
+                    });
+                    return { type: 'ColorRenderSelection', groups: args };
                 }
                 if (name === 'incircle') {
                     return executeCircleWithCenter('incircle', args[0], args[1], args[2], args[3], 'incircle');
@@ -1770,6 +1865,10 @@ ls_ob = segment(O, B)`
                         const val = evalExpr(stmt.expression);
                         if (val?.type === 'RenderSelection') {
                             renderSelection = val.items;
+                        } else if (val?.type === 'SymbolRenderSelection') {
+                            symbolRenderGroups.push(...val.groups);
+                        } else if (val?.type === 'ColorRenderSelection') {
+                            colorRenderGroups.push(...val.groups);
                         }
                     }
                 } catch (e) {
@@ -1779,7 +1878,7 @@ ls_ob = segment(O, B)`
             }
 
             if (!renderSelection) {
-                return { renderElements, freePoints, dependentPoints };
+                return { renderElements, freePoints, dependentPoints, symbolRenderGroups, colorRenderGroups };
             }
 
             const allowedItems = new Set(renderSelection);
@@ -1793,8 +1892,165 @@ ls_ob = segment(O, B)`
             return {
                 renderElements: renderElements.filter(isRenderAllowed),
                 freePoints: freePoints.filter(point => allowedItems.has(point)),
-                dependentPoints: dependentPoints.filter(point => allowedItems.has(point))
+                dependentPoints: dependentPoints.filter(point => allowedItems.has(point)),
+                symbolRenderGroups,
+                colorRenderGroups
             };
+        }
+
+        function hexToRgba(hex, alpha = 0.08) {
+            let normalized = hex.slice(1);
+            if (normalized.length === 3) {
+                normalized = normalized.split('').map(ch => ch + ch).join('');
+            }
+            const r = parseInt(normalized.slice(0, 2), 16);
+            const g = parseInt(normalized.slice(2, 4), 16);
+            const b = parseInt(normalized.slice(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function isColorGroupGeometry(item) {
+            return item?.type === 'Segment'
+                || item?.type === 'Line'
+                || item?.type === 'Ray'
+                || item?.type === 'Circle'
+                || item?.type === 'Polygon';
+        }
+
+        function expandColorGroupItems(item) {
+            if (item?.type === 'Polygon') {
+                return item.segments || [];
+            }
+            if (isColorGroupGeometry(item) && item.type !== 'Polygon') {
+                return [item];
+            }
+            return [];
+        }
+
+        function buildColoredItemSet(colorGroups) {
+            const coloredItems = new Set();
+            (colorGroups || []).forEach(group => {
+                group.items.forEach(item => {
+                    expandColorGroupItems(item).forEach(drawable => coloredItems.add(drawable));
+                });
+            });
+            return coloredItems;
+        }
+
+        function drawColoredGeometryItem(linesG, circlesG, item, color) {
+            if (item.type === 'Line' || item.type === 'Ray') {
+                const drawPts = getInfiniteDrawPoints(item.p1, item.p2, item.type === 'Ray');
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', drawPts.start.x);
+                line.setAttribute('y1', drawPts.start.y);
+                line.setAttribute('x2', drawPts.end.x);
+                line.setAttribute('y2', drawPts.end.y);
+                line.setAttribute('stroke', color);
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('stroke-dasharray', item.type === 'Line' ? '10 6' : '');
+                linesG.appendChild(line);
+                return;
+            }
+            if (item.type === 'Segment') {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', item.p1.x);
+                line.setAttribute('y1', item.p1.y);
+                line.setAttribute('x2', item.p2.x);
+                line.setAttribute('y2', item.p2.y);
+                line.setAttribute('stroke', color);
+                line.setAttribute('stroke-width', '2.5');
+                line.setAttribute('stroke-linecap', 'round');
+                linesG.appendChild(line);
+                return;
+            }
+            if (item.type === 'Circle') {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', item.center.x);
+                circle.setAttribute('cy', item.center.y);
+                circle.setAttribute('r', item.radius);
+                circle.setAttribute('stroke', color);
+                circle.setAttribute('stroke-width', '2');
+                circle.setAttribute('fill', hexToRgba(color));
+                circlesG.appendChild(circle);
+            }
+        }
+
+        function renderColorGroups(linesG, circlesG, colorGroups) {
+            (colorGroups || []).forEach(group => {
+                group.items.forEach(item => {
+                    expandColorGroupItems(item).forEach(drawable => {
+                        drawColoredGeometryItem(linesG, circlesG, drawable, group.color);
+                    });
+                });
+            });
+        }
+
+        function appendSegmentSymbolMark(svgGroup, seg, symbol, color = '#f9e2af') {
+            const dx = seg.p2.x - seg.p1.x;
+            const dy = seg.p2.y - seg.p1.y;
+            const len = Math.hypot(dx, dy);
+            if (len === 0) return;
+
+            const ux = dx / len;
+            const uy = dy / len;
+            const perpX = -uy;
+            const perpY = ux;
+            const cx = (seg.p1.x + seg.p2.x) / 2;
+            const cy = (seg.p1.y + seg.p2.y) / 2;
+            const gap = 6;
+            const tickHalf = 5;
+            const normalize = (vx, vy) => {
+                const mag = Math.hypot(vx, vy);
+                return mag === 0 ? { x: 0, y: 0 } : { x: vx / mag, y: vy / mag };
+            };
+
+            for (let i = 0; i < symbol.length; i++) {
+                const ch = symbol[i];
+                const offsetAlong = (i - (symbol.length - 1) / 2) * gap;
+                const px = cx + ux * offsetAlong;
+                const py = cy + uy * offsetAlong;
+
+                if (ch === '/' || ch === '|') {
+                    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    tick.setAttribute('x1', px - perpX * tickHalf);
+                    tick.setAttribute('y1', py - perpY * tickHalf);
+                    tick.setAttribute('x2', px + perpX * tickHalf);
+                    tick.setAttribute('y2', py + perpY * tickHalf);
+                    tick.setAttribute('stroke', color);
+                    tick.setAttribute('stroke-width', '1.8');
+                    tick.setAttribute('stroke-linecap', 'round');
+                    svgGroup.appendChild(tick);
+                } else if (ch === 'x') {
+                    [normalize(perpX + ux, perpY + uy), normalize(perpX - ux, perpY - uy)].forEach(dir => {
+                        if (dir.x === 0 && dir.y === 0) return;
+                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        tick.setAttribute('x1', px - dir.x * tickHalf);
+                        tick.setAttribute('y1', py - dir.y * tickHalf);
+                        tick.setAttribute('x2', px + dir.x * tickHalf);
+                        tick.setAttribute('y2', py + dir.y * tickHalf);
+                        tick.setAttribute('stroke', color);
+                        tick.setAttribute('stroke-width', '1.8');
+                        tick.setAttribute('stroke-linecap', 'round');
+                        svgGroup.appendChild(tick);
+                    });
+                } else if (ch === '*') {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', px);
+                    text.setAttribute('y', py + 4);
+                    text.setAttribute('fill', color);
+                    text.setAttribute('font-size', '13px');
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('font-family', 'monospace');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.textContent = '*';
+                    svgGroup.appendChild(text);
+                }
+            }
+        }
+
+        function renderLenGroupSymbols(svgGroup, group) {
+            group.segments.forEach(seg => appendSegmentSymbolMark(svgGroup, seg, group.symbol));
         }
 
         function getInfiniteDrawPoints(p1, p2, isRay = false) {
@@ -1835,8 +2091,13 @@ ls_ob = segment(O, B)`
             labelsG.innerHTML = '';
             pointsG.innerHTML = '';
 
+            const coloredItemSet = buildColoredItemSet(data.colorRenderGroups);
+
             // 1. Vẽ các yếu tố đường/vòng tròn
             data.renderElements.forEach(el => {
+                if (coloredItemSet.has(el)) {
+                    return;
+                }
                 if (el.type === 'Line' || el.type === 'Ray') {
                     const drawPts = getInfiniteDrawPoints(el.p1, el.p2, el.type === 'Ray');
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1878,35 +2139,6 @@ ls_ob = segment(O, B)`
                     circle.setAttribute('fill', 'rgba(249, 226, 175, 0.05)');
                     circlesG.appendChild(circle);
                 }
-                else if (el.type === 'EqualSegments') {
-                    el.segments.forEach((seg, segIndex) => {
-                        const dx = seg.p2.x - seg.p1.x;
-                        const dy = seg.p2.y - seg.p1.y;
-                        const len = Math.hypot(dx, dy);
-                        if (len === 0) return;
-                        const ux = dx / len;
-                        const uy = dy / len;
-                        const perpX = -uy;
-                        const perpY = ux;
-                        const tickHalf = 5;
-                        const gap = 6;
-                        const total = Math.max(1, el.count || 1);
-                        for (let markIdx = 0; markIdx < total; markIdx++) {
-                            const offsetAlong = (markIdx - (total - 1) / 2) * gap;
-                            const cx = (seg.p1.x + seg.p2.x) / 2 + ux * offsetAlong;
-                            const cy = (seg.p1.y + seg.p2.y) / 2 + uy * offsetAlong;
-                            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                            tick.setAttribute('x1', cx - perpX * tickHalf);
-                            tick.setAttribute('y1', cy - perpY * tickHalf);
-                            tick.setAttribute('x2', cx + perpX * tickHalf);
-                            tick.setAttribute('y2', cy + perpY * tickHalf);
-                            tick.setAttribute('stroke', segIndex === 0 ? '#f9e2af' : '#fab387');
-                            tick.setAttribute('stroke-width', '1.8');
-                            tick.setAttribute('stroke-linecap', 'round');
-                            symbolsG.appendChild(tick);
-                        }
-                    });
-                }
                 else if (el.type === 'RightAngle') {
                     // Vẽ ô vuông góc nhỏ tại đỉnh hình chiếu H
                     const size = 12;
@@ -1946,37 +2178,6 @@ ls_ob = segment(O, B)`
                         ring.setAttribute('stroke', '#a6e3a1');
                         ring.setAttribute('stroke-width', '1.5');
                         symbolsG.appendChild(ring);
-                    } else if (el.markerRole === 'midpoint') {
-                        const { p1, p2, count = 1 } = el.point.markerData || {};
-                        if (p1 && p2) {
-                            const dx = p2.x - p1.x;
-                            const dy = p2.y - p1.y;
-                            const len = Math.hypot(dx, dy);
-                            if (len > 0) {
-                                const ux = dx / len;
-                                const uy = dy / len;
-                                const perpX = -uy;
-                                const perpY = ux;
-                                const tickHalf = 5;
-                                const offset = 9;
-                                for (let markIdx = 0; markIdx < Math.max(1, count); markIdx++) {
-                                    const shift = (markIdx - (Math.max(1, count) - 1) / 2) * 6;
-                                    [-offset, offset].forEach(delta => {
-                                        const cx = el.point.x + ux * delta + perpX * shift;
-                                        const cy = el.point.y + uy * delta + perpY * shift;
-                                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                                        tick.setAttribute('x1', cx - perpX * tickHalf);
-                                        tick.setAttribute('y1', cy - perpY * tickHalf);
-                                        tick.setAttribute('x2', cx + perpX * tickHalf);
-                                        tick.setAttribute('y2', cy + perpY * tickHalf);
-                                        tick.setAttribute('stroke', '#f9e2af');
-                                        tick.setAttribute('stroke-width', '1.8');
-                                        tick.setAttribute('stroke-linecap', 'round');
-                                        symbolsG.appendChild(tick);
-                                    });
-                                }
-                            }
-                        }
                     }
                 }
             });
@@ -1991,9 +2192,6 @@ ls_ob = segment(O, B)`
                     isDraggable,
                     dragConstraint: pt.dragConstraint || null
                 };
-                if (pt.specialRole === 'midpoint') {
-                    pointMarkers.push({ type: 'PointMarker', point: pt, markerRole: pt.specialRole });
-                }
                 
                 // Vòng ngoài phát quang nhẹ (chỉ điểm tự do mới có)
                 if (isDraggable) {
@@ -2092,39 +2290,11 @@ ls_ob = segment(O, B)`
                     ring.setAttribute('stroke', '#a6e3a1');
                     ring.setAttribute('stroke-width', '1.5');
                     symbolsG.appendChild(ring);
-                } else if (el.markerRole === 'midpoint') {
-                    const { p1, p2, count = 1 } = el.point.markerData || {};
-                    if (p1 && p2) {
-                        const dx = p2.x - p1.x;
-                        const dy = p2.y - p1.y;
-                        const len = Math.hypot(dx, dy);
-                        if (len > 0) {
-                            const ux = dx / len;
-                            const uy = dy / len;
-                            const perpX = -uy;
-                            const perpY = ux;
-                            const tickHalf = 5;
-                            const offset = 9;
-                            for (let markIdx = 0; markIdx < Math.max(1, count); markIdx++) {
-                                const shift = (markIdx - (Math.max(1, count) - 1) / 2) * 6;
-                                [-offset, offset].forEach(delta => {
-                                    const cx = el.point.x + ux * delta + perpX * shift;
-                                    const cy = el.point.y + uy * delta + perpY * shift;
-                                    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                                    tick.setAttribute('x1', cx - perpX * tickHalf);
-                                    tick.setAttribute('y1', cy - perpY * tickHalf);
-                                    tick.setAttribute('x2', cx + perpX * tickHalf);
-                                    tick.setAttribute('y2', cy + perpY * tickHalf);
-                                    tick.setAttribute('stroke', '#f9e2af');
-                                    tick.setAttribute('stroke-width', '1.8');
-                                    tick.setAttribute('stroke-linecap', 'round');
-                                    symbolsG.appendChild(tick);
-                                });
-                            }
-                        }
-                    }
                 }
             });
+
+            (data.symbolRenderGroups || []).forEach(group => renderLenGroupSymbols(symbolsG, group));
+            renderColorGroups(linesG, circlesG, data.colorRenderGroups);
         }
 
         // ----------------- INTERACTIVE LOGIC (DRAG & DROP) -----------------
@@ -2264,8 +2434,10 @@ ls_ob = segment(O, B)`
                     throw new Error(`HTTP ${response.status}`);
                 }
                 syntaxDocsData = await response.json();
-                syntaxDocsLanguage = syntaxDocsData.defaultLanguage || 'vi';
-                applySyntaxDocsUiText();
+                if (!localStorage.getItem('geo-dsl-ui-language')) {
+                    uiLanguage = syntaxDocsData.defaultLanguage || 'vi';
+                }
+                applyUiLanguage();
                 status.classList.add('hidden');
                 return syntaxDocsData;
             } catch (error) {
@@ -2276,76 +2448,78 @@ ls_ob = segment(O, B)`
             }
         }
 
+        function getUiText(key) {
+            if (UI_TEXT[uiLanguage]?.[key]) {
+                return UI_TEXT[uiLanguage][key];
+            }
+            if (UI_TEXT.vi[key]) {
+                return UI_TEXT.vi[key];
+            }
+            return syntaxDocsData?.ui?.[uiLanguage]?.[key] || '';
+        }
+
         function getSyntaxDocsUiText(key) {
-            const fallback = {
-                vi: {
-                    openButton: 'Mở tra cứu',
-                    panelTitle: '📖 Tài liệu cú pháp',
-                    panelDescription: 'Tra cứu theo category, tìm kiếm nhanh và xem ví dụ trong popup.',
-                    modalTitle: 'Tra cứu cú pháp',
-                    modalDescription: 'Tài liệu được nạp từ file JSON riêng và có thể tìm kiếm theo nhóm.',
-                    closeButton: 'Đóng',
-                    searchPlaceholder: 'Tìm theo cú pháp hoặc mô tả...',
-                    allCategory: 'Tất cả',
-                    loading: 'Đang tải tài liệu cú pháp...',
-                    loadError: 'Không tải được file syntax-docs.json. Hãy mở trang từ workspace hiện tại để dùng tra cứu.',
-                    emptyResult: 'Không có mục nào khớp với từ khóa hoặc category đang chọn.',
-                    itemCount: 'mục',
-                    languageVi: 'Tiếng Việt',
-                    languageEn: 'English'
-                },
-                en: {
-                    openButton: 'Open reference',
-                    panelTitle: '📖 Syntax reference',
-                    panelDescription: 'Browse by category, search quickly, and inspect examples in the popup.',
-                    modalTitle: 'Syntax reference',
-                    modalDescription: 'Reference content is loaded from a separate JSON file and can be searched by group.',
-                    closeButton: 'Close',
-                    searchPlaceholder: 'Search by syntax or description...',
-                    allCategory: 'All',
-                    loading: 'Loading syntax reference...',
-                    loadError: 'Could not load syntax-docs.json. Open the page from this workspace to use the reference.',
-                    emptyResult: 'No entries match the current keyword or category.',
-                    itemCount: 'items',
-                    languageVi: 'Vietnamese',
-                    languageEn: 'English'
-                }
-            };
-            return syntaxDocsData?.ui?.[syntaxDocsLanguage]?.[key]
-                || fallback[syntaxDocsLanguage]?.[key]
-                || fallback.vi[key]
-                || '';
+            return getUiText(key);
+        }
+
+        function renderUiLanguageSwitch() {
+            const mounts = [
+                document.getElementById('ui-language-switch'),
+                document.getElementById('syntax-docs-language-switch')
+            ].filter(Boolean);
+            const languages = [
+                { id: 'vi', label: getUiText('languageVi') },
+                { id: 'en', label: getUiText('languageEn') }
+            ];
+            const html = languages.map(language => {
+                const active = language.id === uiLanguage;
+                return `<button onclick="setUiLanguage('${language.id}')" class="text-xs px-2.5 py-1.5 rounded border transition ${active ? 'bg-[#f9e2af] text-[#11111b] border-[#f9e2af]' : 'bg-[#181825] text-[#cdd6f4] border-[#313244] hover:bg-[#313244]'}">${language.label}</button>`;
+            }).join('');
+            mounts.forEach(mount => {
+                mount.innerHTML = html;
+            });
+        }
+
+        function applyUiLanguage() {
+            document.getElementById('html-root').setAttribute('lang', uiLanguage);
+            document.title = getUiText('pageTitle');
+            const pageTitleEl = document.getElementById('page-title');
+            if (pageTitleEl) pageTitleEl.textContent = getUiText('pageTitle');
+            document.getElementById('app-subtitle').textContent = getUiText('appSubtitle');
+            document.getElementById('editor-panel-title').textContent = getUiText('editorPanelTitle');
+            document.getElementById('editor').placeholder = getUiText('editorPlaceholder');
+            document.getElementById('drag-hint').innerHTML = getUiText('dragHintHtml');
+            document.getElementById('run-button-label').textContent = getUiText('runButton');
+            document.getElementById('canvas-panel-title').textContent = getUiText('canvasPanelTitle');
+            document.getElementById('zoom-reset-button').textContent = getUiText('zoomReset');
+            document.getElementById('syntax-docs-panel-title').textContent = getUiText('panelTitle');
+            document.getElementById('syntax-docs-panel-description').textContent = getUiText('panelDescription');
+            document.getElementById('syntax-docs-open-button').textContent = getUiText('openButton');
+            document.getElementById('syntax-docs-modal-title').textContent = getUiText('modalTitle');
+            document.getElementById('syntax-docs-modal-description').textContent = getUiText('modalDescription');
+            document.getElementById('syntax-docs-close-button').textContent = getUiText('closeButton');
+            document.getElementById('syntax-docs-search').placeholder = getUiText('searchPlaceholder');
+            renderUiLanguageSwitch();
+        }
+
+        function setUiLanguage(language) {
+            uiLanguage = language;
+            localStorage.setItem('geo-dsl-ui-language', language);
+            applyUiLanguage();
+            renderSyntaxDocsCategories();
+            renderSyntaxDocsResults();
         }
 
         function applySyntaxDocsUiText() {
-            document.getElementById('syntax-docs-panel-title').textContent = getSyntaxDocsUiText('panelTitle');
-            document.getElementById('syntax-docs-panel-description').textContent = getSyntaxDocsUiText('panelDescription');
-            document.getElementById('syntax-docs-open-button').textContent = getSyntaxDocsUiText('openButton');
-            document.getElementById('syntax-docs-modal-title').textContent = getSyntaxDocsUiText('modalTitle');
-            document.getElementById('syntax-docs-modal-description').textContent = getSyntaxDocsUiText('modalDescription');
-            document.getElementById('syntax-docs-close-button').textContent = getSyntaxDocsUiText('closeButton');
-            document.getElementById('syntax-docs-search').placeholder = getSyntaxDocsUiText('searchPlaceholder');
-            renderSyntaxDocsLanguageSwitch();
+            applyUiLanguage();
         }
 
         function renderSyntaxDocsLanguageSwitch() {
-            const mount = document.getElementById('syntax-docs-language-switch');
-            if (!mount) return;
-            const languages = [
-                { id: 'vi', label: getSyntaxDocsUiText('languageVi') },
-                { id: 'en', label: getSyntaxDocsUiText('languageEn') }
-            ];
-            mount.innerHTML = languages.map(language => {
-                const active = language.id === syntaxDocsLanguage;
-                return `<button onclick="setSyntaxDocsLanguage('${language.id}')" class="text-xs px-2.5 py-1.5 rounded border transition ${active ? 'bg-[#f9e2af] text-[#11111b] border-[#f9e2af]' : 'bg-[#181825] text-[#cdd6f4] border-[#313244] hover:bg-[#313244]'}">${language.label}</button>`;
-            }).join('');
+            renderUiLanguageSwitch();
         }
 
         function setSyntaxDocsLanguage(language) {
-            syntaxDocsLanguage = language;
-            applySyntaxDocsUiText();
-            renderSyntaxDocsCategories();
-            renderSyntaxDocsResults();
+            setUiLanguage(language);
         }
 
         function getFilteredSyntaxDocs() {
@@ -2357,8 +2531,8 @@ ls_ob = segment(O, B)`
                     ...category,
                     items: category.items.filter(item => {
                         if (!normalizedSearch) return true;
-                        const localizedDescription = item.description?.[syntaxDocsLanguage] || item.description?.vi || item.description?.en || '';
-                        const localizedLabel = category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || '';
+                        const localizedDescription = item.description?.[uiLanguage] || item.description?.vi || item.description?.en || '';
+                        const localizedLabel = category.label?.[uiLanguage] || category.label?.vi || category.label?.en || '';
                         const haystack = `${item.syntax} ${localizedDescription} ${localizedLabel}`.toLowerCase();
                         return haystack.includes(normalizedSearch);
                     })
@@ -2377,7 +2551,7 @@ ls_ob = segment(O, B)`
                 { id: 'all', label: getSyntaxDocsUiText('allCategory') },
                 ...syntaxDocsData.categories.map(category => ({
                     id: category.id,
-                    label: category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || category.id
+                    label: category.label?.[uiLanguage] || category.label?.vi || category.label?.en || category.id
                 }))
             ];
 
@@ -2411,14 +2585,14 @@ ls_ob = segment(O, B)`
             resultsEl.innerHTML = filtered.map(category => `
                 <section class="space-y-3">
                     <div class="flex items-center justify-between gap-3">
-                        <h3 class="text-sm font-bold text-[#f9e2af]">${category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || category.id}</h3>
+                        <h3 class="text-sm font-bold text-[#f9e2af]">${category.label?.[uiLanguage] || category.label?.vi || category.label?.en || category.id}</h3>
                         <span class="text-[11px] text-[#a6adc8]">${category.items.length} ${getSyntaxDocsUiText('itemCount')}</span>
                     </div>
                     <div class="space-y-2">
                         ${category.items.map(item => `
                             <article class="bg-[#11111b] border border-[#313244] rounded-xl p-3">
                                 <div class="text-sm font-mono text-[#a6e3a1] break-words">${item.syntax}</div>
-                                <p class="text-xs text-[#bac2de] mt-2 leading-relaxed">${item.description?.[syntaxDocsLanguage] || item.description?.vi || item.description?.en || ''}</p>
+                                <p class="text-xs text-[#bac2de] mt-2 leading-relaxed">${item.description?.[uiLanguage] || item.description?.vi || item.description?.en || ''}</p>
                             </article>
                         `).join('')}
                     </div>
@@ -2454,7 +2628,7 @@ ls_ob = segment(O, B)`
             const { x, y } = clientToSvgPoint(evt);
 
             // Hiển thị tọa độ góc màn hình
-            document.getElementById('coords-tooltip').textContent = `Tọa độ: (${x}, ${y})`;
+            document.getElementById('coords-tooltip').textContent = `${getUiText('coordsLabel')}: (${x}, ${y})`;
 
             if (isDraggingLabel && activeDragLabel) {
                 const pt = lastRenderedPoints.find(p => p.name === activeDragLabel);
@@ -2507,7 +2681,7 @@ ls_ob = segment(O, B)`
 
         function showError(msg) {
             const log = document.getElementById('error-log');
-            log.textContent = `⚠️ Lỗi dịch: ${msg}`;
+            log.textContent = `${getUiText('compileErrorPrefix')} ${msg}`;
             log.classList.remove('hidden');
         }
 
@@ -2537,7 +2711,7 @@ ls_ob = segment(O, B)`
 
         // Khởi động mặc định lần đầu tải trang
         window.onload = () => {
-            applySyntaxDocsUiText();
+            applyUiLanguage();
             updateZoomDisplay();
             loadPreset('preset1');
         };
