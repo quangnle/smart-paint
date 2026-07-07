@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geo-DSL: Trình dựng hình học phẳng bằng mã lệnh</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e2e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #45475a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #585b70;
+        }
+        /* CSS cho lưới tọa độ SVG */
+        .grid-bg {
+            fill: url(#grid);
+        }
+        /* Hiệu ứng di chuột trên điểm tự do */
+        .free-point {
+            cursor: grab;
+            transition: r 0.1s ease;
+        }
+        .free-point:active {
+            cursor: grabbing;
+        }
+        .point-label-hit {
+            cursor: grab;
+        }
+        .point-label-hit:active {
+            cursor: grabbing;
+        }
+        .point-label-text {
+            pointer-events: none;
+            user-select: none;
+        }
+        .canvas-shell {
+            width: min(100%, 920px);
+            transition: width 0.2s ease;
+        }
+        .docs-backdrop {
+            background: rgba(15, 15, 21, 0.82);
+            backdrop-filter: blur(6px);
+        }
+    </style>
+</head>
+<body class="bg-[#11111b] text-[#cdd6f4] font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header điều hướng -->
+    <header class="bg-[#181825] border-b border-[#313244] px-6 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl">📐</span>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-wide">Geo-DSL Studio</h1>
+                <p class="text-xs text-[#a6adc8]">Trình khai báo dựng hình phẳng bằng mã lệnh tự nhiên</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-xs bg-[#313244] px-2.5 py-1 rounded-md text-[#f38ba8] font-mono border border-[#f38ba8]/20">v1.0.0 (MVP)</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace (Split Screen) -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Panel: Code Editor -->
+        <section class="w-[36%] min-w-[340px] max-w-[540px] border-r border-[#313244] bg-[#1e1e2e] flex flex-col h-full">
+            <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Trình soạn thảo mã lệnh</span>
+            </div>
+            
+            <!-- Code Area -->
+            <div class="flex-1 flex flex-col p-4 relative">
+                <textarea id="editor" class="flex-1 bg-[#11111b] text-[#a6e3a1] font-mono p-4 rounded-lg border border-[#313244] focus:outline-none focus:border-[#89b4fa] resize-none leading-relaxed text-sm" placeholder="// Nhập mã lệnh hình học tại đây..."></textarea>
+                
+                <!-- Error Log / Compiler Output -->
+                <div id="error-log" class="hidden mt-4 p-3 bg-[#f38ba8]/10 border border-[#f38ba8]/30 rounded-lg text-xs text-[#f38ba8] font-mono">
+                    ⚠️ Error details...
+                </div>
+            </div>
+
+            <!-- Execution Panel -->
+            <div class="p-4 bg-[#181825] border-t border-[#313244] flex items-center justify-between">
+                <div class="text-xs text-[#bac2de]">
+                    💡 Kéo thả điểm màu <span class="text-[#89b4fa] font-bold">Xanh</span> trên hình để thay đổi.
+                </div>
+                <button onclick="runCode()" class="bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-bold px-5 py-2 rounded-lg text-sm transition shadow-lg flex items-center space-x-2">
+                    <span>⚡ Chạy mã lệnh</span>
+                </button>
+            </div>
+
+            <div class="p-4 border-t border-[#313244] bg-[#1e1e2e]">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h3 id="syntax-docs-panel-title" class="text-xs font-bold text-white uppercase tracking-wider">📖 Tài liệu cú pháp</h3>
+                        <p id="syntax-docs-panel-description" class="text-[11px] text-[#a6adc8] mt-1">Tra cứu theo category, tìm kiếm nhanh và xem ví dụ trong popup.</p>
+                    </div>
+                    <button id="syntax-docs-open-button" onclick="openSyntaxDocsModal()" class="shrink-0 text-xs bg-[#313244] hover:bg-[#45475a] text-white px-3 py-2 rounded transition">Mở tra cứu</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Interactive Canvas -->
+        <section class="flex-1 flex flex-col h-full bg-[#11111b] min-w-0">
+            <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Hình ảnh hình học trực quan</span>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <button onclick="zoomOut()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">−</button>
+                        <span class="text-xs text-[#f9e2af] font-mono min-w-[52px] text-center" id="zoom-level">100%</span>
+                        <button onclick="zoomIn()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">+</button>
+                        <button onclick="resetZoom()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-2.5 py-1.5 rounded transition">Reset</button>
+                    </div>
+                    <span class="text-xs text-[#a6adc8]" id="coords-tooltip">Tọa độ: (0, 0)</span>
+                </div>
+            </div>
+
+            <div class="flex-1 relative flex items-center justify-center p-4 bg-[#0f0f15] overflow-auto">
+                <!-- Interactive SVG Canvas -->
+                <div class="canvas-shell flex items-center justify-center min-w-full min-h-full py-4">
+                <svg id="canvas" viewBox="0 0 500 500" class="w-full max-w-[920px] aspect-square bg-[#181825] rounded-xl border border-[#313244] shadow-2xl overflow-hidden select-none"
+                    onmousemove="handleMouseMove(event)"
+                    onmouseup="handleMouseUp()"
+                    onmouseleave="handleMouseUp()"
+                    onwheel="handleZoomWheel(event)">
+                    
+                    <!-- Định nghĩa mẫu nền lưới và marker mũi tên -->
+                    <defs>
+                        <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
+                            <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#313244" stroke-width="0.5" />
+                        </pattern>
+                    </defs>
+
+                    <g id="zoom-layer">
+                        <!-- Lớp nền grid toán học -->
+                        <rect id="grid-bg" x="-1500" y="-1500" width="4000" height="4000" class="grid-bg" />
+
+                        <!-- Nhóm vẽ các đường hình học động -->
+                        <g id="draw-lines"></g>
+                        <!-- Nhóm vẽ các biểu tượng đặc biệt (ví dụ góc vuông) -->
+                        <g id="draw-symbols"></g>
+                        <!-- Nhóm vẽ các vòng tròn -->
+                        <g id="draw-circles"></g>
+                        <!-- Nhóm vẽ các nhãn chữ -->
+                        <g id="draw-labels"></g>
+                        <!-- Nhóm vẽ các chấm điểm tròn -->
+                        <g id="draw-points"></g>
+                    </g>
+                </svg>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="syntax-docs-modal" class="hidden fixed inset-0 z-50 docs-backdrop flex items-center justify-center p-4">
+        <div class="w-full max-w-4xl max-h-[86vh] bg-[#181825] border border-[#313244] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-[#313244] flex items-center justify-between gap-4">
+                <div>
+                    <h2 id="syntax-docs-modal-title" class="text-base font-bold text-white">Tra cứu cú pháp</h2>
+                    <p id="syntax-docs-modal-description" class="text-xs text-[#a6adc8] mt-1">Tài liệu được nạp từ file JSON riêng và có thể tìm kiếm theo nhóm.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="syntax-docs-language-switch" class="flex items-center gap-1"></div>
+                    <button id="syntax-docs-close-button" onclick="closeSyntaxDocsModal()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-3 py-2 rounded transition">Đóng</button>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-b border-[#313244] bg-[#11111b] flex flex-col gap-3">
+                <input id="syntax-docs-search" type="text" placeholder="Tìm theo cú pháp hoặc mô tả..." class="w-full bg-[#181825] text-[#cdd6f4] border border-[#313244] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#89b4fa]" oninput="handleSyntaxDocsSearch(event)" />
+                <div id="syntax-docs-categories" class="flex flex-wrap gap-2"></div>
+            </div>
+            <div id="syntax-docs-status" class="px-5 py-3 text-sm text-[#a6adc8] border-b border-[#313244] hidden"></div>
+            <div id="syntax-docs-results" class="flex-1 overflow-y-auto p-5 space-y-4 bg-[#181825]"></div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        // Các preset code mẫu
+        const presets = {
+            preset1: `// Vẽ tam giác ABC kèm đường cao AH và trung tuyến AM
+A, B, C = points(free)
+tr = poly(A, B, C)
+M = midpoint(B, C)
+H = project(A, line(B, C))
+
+ls_ah = segment(A, H)
+ls_am = segment(A, M)`,
+
+            preset2: `// Vẽ đường tròn ngoại tiếp đoạn AB và đường tròn bán kính cố định
+O, A = points(free)
+c1 = circle(O, A)
+
+B = points(free)
+c2 = circle(O, 85)
+
+ls_oa = segment(O, A)
+ls_ob = segment(O, B)`
+        };
+
+        // Biến lưu trữ tọa độ toàn cục thực tế của các điểm (Tải lại không mất điểm đang kéo)
+        let globalPoints = {
+            A: { x: 250, y: 120 },
+            B: { x: 120, y: 380 },
+            C: { x: 380, y: 380 }
+        };
+
+        let currentAST = [];
+        let isDragging = false;
+        let activeDragPoint = null;
+        let isDraggingLabel = false;
+        let activeDragLabel = null;
+        let labelOffsets = {};
+        let lastRenderedPoints = [];
+        const LABEL_DRAG_MAX_RADIUS = 20;
+        const LABEL_DEFAULT_DIRECTION = { dx: 10, dy: -10 };
+        let pointInteractionMap = {};
+        let currentZoom = 1;
+        const VIEW_CENTER_X = 250;
+        const VIEW_CENTER_Y = 250;
+        const BASE_VIEW_SIZE = 500;
+        const MIN_ZOOM = 0.2;
+        const MAX_ZOOM = 3;
+        const ZOOM_STEP = 0.2;
+        let syntaxDocsData = null;
+        let syntaxDocsActiveCategory = 'all';
+        let syntaxDocsSearchTerm = '';
+        let syntaxDocsLanguage = 'vi';
+
+        // ----------------- PARSER ENGINE -----------------
+
+        function splitTopLevel(str, separator) {
+            let depth = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                if (char === '(') depth++;
+                if (char === ')') depth--;
+                if (char === separator && depth === 0) {
+                    return [str.slice(0, i), str.slice(i + 1)];
+                }
+            }
+            return null;
+        }
+        
+        // 1. Phân tích chuỗi biểu thức đệ quy
+        function parseExpression(str) {
+            str = str.trim();
+            const equalityParts = splitTopLevel(str, '=');
+            if (equalityParts) {
+                return {
+                    type: 'Equality',
+                    left: parseExpression(equalityParts[0]),
+                    right: parseExpression(equalityParts[1])
+                };
+            }
+            const multiplyParts = splitTopLevel(str, '*');
+            if (multiplyParts) {
+                return {
+                    type: 'Multiply',
+                    left: parseExpression(multiplyParts[0]),
+                    right: parseExpression(multiplyParts[1])
+                };
+            }
+            const match = str.match(/^([\w_]+)\((.*)\)$/);
+            if (!match) {
+                if (/^-?\d+(\.\d+)?$/.test(str)) {
+                    return { type: 'Number', value: parseFloat(str) };
+                }
+                return { type: 'Identifier', name: str };
+            }
+            
+            const name = match[1];
+            const argsStr = match[2];
+            
+            // Tách các đối số bằng dấu phẩy, tôn trọng ngoặc đơn lồng nhau
+            const args = [];
+            let current = "";
+            let depth = 0;
+            for (let i = 0; i < argsStr.length; i++) {
+                const char = argsStr[i];
+                if (char === '(') depth++;
+                if (char === ')') depth--;
+                if (char === ',' && depth === 0) {
+                    args.push(parseExpression(current));
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            if (current.trim()) {
+                args.push(parseExpression(current));
+            }
+            
+            return {
+                type: 'FunctionCall',
+                name: name,
+                args: args
+            };
+        }
+
+        // 2. Dịch toàn bộ chương trình thành AST
+        function parseDSL(code) {
+            const lines = code.split('\n');
+            const ast = [];
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (!line || line.startsWith('//')) continue;
+                
+                const parts = line.split('=');
+                if (parts.length < 2) {
+                    // Dòng lệnh không gán (ví dụ: segment(A, B))
+                    try {
+                        const expr = parseExpression(line);
+                        ast.push({ type: 'Statement', expression: expr, lineNum: i + 1 });
+                    } catch (e) {
+                        throw new Error(`Dòng ${i + 1}: Lỗi cú pháp "${line}"`);
+                    }
+                    continue;
+                }
+                
+                const left = parts[0].trim();
+                const right = parts.slice(1).join('=').trim();
+                const outputs = left.split(',').map(s => s.trim());
+                
+                try {
+                    const expression = parseExpression(right);
+                    ast.push({
+                        type: 'Assignment',
+                        outputs: outputs,
+                        expression: expression,
+                        lineNum: i + 1
+                    });
+                } catch (e) {
+                    throw new Error(`Dòng ${i + 1}: Lỗi phân tích "${right}": ${e.message}`);
+                }
+            }
+            return ast;
+        }
+
+        // ----------------- SOLVER ENGINE -----------------
+
+        function evaluateAST(ast) {
+            const runtimeScope = {};
+            const renderElements = [];
+            const freePoints = [];
+            const dependentPoints = [];
+            let currentAssignmentName = null;
+            let relationMarkerGroupCounter = 0;
+            let renderSelection = null;
+
+            function getSpecArg(argNode) {
+                if (!argNode) return 'free';
+                if (argNode.type === 'Identifier') return argNode.name;
+                if (argNode.type === 'Number') return argNode.value;
+                throw new Error('Biểu thức dựng hình đặc biệt chỉ hỗ trợ tham số số hoặc từ khóa đơn giản');
+            }
+
+            function distanceBetween(p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            function normalizeVector(dx, dy) {
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return null;
+                return { x: dx / len, y: dy / len };
+            }
+
+            function buildPoint(x, y) {
+                return { type: 'Point', x, y };
+            }
+
+            function buildSpecialPoint(x, y, specialRole) {
+                return { type: 'Point', x, y, specialRole };
+            }
+
+            function cross2D(ax, ay, bx, by) {
+                return ax * by - ay * bx;
+            }
+
+            function signedDistanceToLine(point, p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return 0;
+                return ((point.x - p1.x) * dy - (point.y - p1.y) * dx) / len;
+            }
+
+            function projectPointToLine(point, p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const lenSq = dx * dx + dy * dy;
+                if (lenSq === 0) return { x: p1.x, y: p1.y };
+                const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / lenSq;
+                return { x: p1.x + t * dx, y: p1.y + t * dy };
+            }
+
+            function reflectPointAcrossLine(point, p1, p2) {
+                const foot = projectPointToLine(point, p1, p2);
+                return {
+                    x: 2 * foot.x - point.x,
+                    y: 2 * foot.y - point.y
+                };
+            }
+
+            function projectionFactor(point, p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const lenSq = dx * dx + dy * dy;
+                if (lenSq === 0) return 0;
+                return ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / lenSq;
+            }
+
+            function getLineFromArg(arg, fnName) {
+                if (arg?.type === 'Line' || arg?.type === 'Segment' || arg?.type === 'Ray') {
+                    return arg;
+                }
+                throw new Error(`Hàm ${fnName}() cần một đường, tia hoặc đoạn thẳng hợp lệ`);
+            }
+
+            function getCircleFromArg(arg, fnName) {
+                if (arg?.type === 'Circle') {
+                    return arg;
+                }
+                throw new Error(`Hàm ${fnName}() cần một đường tròn hợp lệ`);
+            }
+
+            function getDistanceArg(origin, arg, fnName) {
+                if (arg?.type === 'Number') return arg.value;
+                if (arg?.type === 'Point') return distanceBetween(origin, arg);
+                if (arg?.type === 'Segment') return distanceBetween(arg.p1, arg.p2);
+                throw new Error(`Hàm ${fnName}() cần độ dài là số hoặc một điểm để suy ra khoảng cách`);
+            }
+
+            function buildRenderedCircle(center, radius, role) {
+                const circle = { type: 'Circle', center, radius, role };
+                renderElements.push(circle);
+                return circle;
+            }
+
+            function nextRelationMarkerCount(explicitCount = null) {
+                if (typeof explicitCount === 'number') {
+                    return Math.max(1, Math.round(explicitCount));
+                }
+                relationMarkerGroupCounter += 1;
+                return relationMarkerGroupCounter;
+            }
+
+            function toRadians(deg) {
+                return deg * Math.PI / 180;
+            }
+
+            function getDefaultPointCoords(count) {
+                const presets = {
+                    1: [{ x: 250, y: 250 }],
+                    2: [{ x: 150, y: 200 }, { x: 350, y: 200 }],
+                    3: [{ x: 250, y: 120 }, { x: 120, y: 380 }, { x: 380, y: 380 }],
+                    4: [{ x: 120, y: 130 }, { x: 90, y: 360 }, { x: 320, y: 390 }, { x: 390, y: 170 }]
+                };
+                if (presets[count]) return presets[count];
+                return Array.from({ length: count }, (_, idx) => ({ x: 100 + idx * 50, y: 100 + idx * 30 }));
+            }
+
+            function solveIncenter(a, b, c) {
+                const lenA = distanceBetween(b, c);
+                const lenB = distanceBetween(c, a);
+                const lenC = distanceBetween(a, b);
+                const perimeter = lenA + lenB + lenC;
+                if (perimeter === 0) throw new Error('Không thể dựng đường tròn từ tam giác suy biến');
+
+                const center = {
+                    type: 'Point',
+                    x: (lenA * a.x + lenB * b.x + lenC * c.x) / perimeter,
+                    y: (lenA * a.y + lenB * b.y + lenC * c.y) / perimeter
+                };
+                const radius = Math.abs(signedDistanceToLine(center, b, c));
+                return { center, radius, lenA, lenB, lenC };
+            }
+
+            function solveCircumcircle(a, b, c) {
+                const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+                if (Math.abs(d) < 1e-6) {
+                    throw new Error('Không thể dựng đường tròn ngoại tiếp với ba điểm thẳng hàng');
+                }
+
+                const center = {
+                    type: 'Point',
+                    x: ((a.x * a.x + a.y * a.y) * (b.y - c.y) + (b.x * b.x + b.y * b.y) * (c.y - a.y) + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d,
+                    y: ((a.x * a.x + a.y * a.y) * (c.x - b.x) + (b.x * b.x + b.y * b.y) * (a.x - c.x) + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d
+                };
+                return { center, radius: distanceBetween(center, a) };
+            }
+
+            function solveExcircle(a, b, c, oppositePoint) {
+                const { lenA, lenB, lenC } = solveIncenter(a, b, c);
+                let center;
+                if (oppositePoint === a) {
+                    const denom = -lenA + lenB + lenC;
+                    if (Math.abs(denom) < 1e-6) throw new Error('Không thể dựng đường tròn bàng tiếp với tam giác suy biến');
+                    center = {
+                        type: 'Point',
+                        x: (-lenA * a.x + lenB * b.x + lenC * c.x) / denom,
+                        y: (-lenA * a.y + lenB * b.y + lenC * c.y) / denom
+                    };
+                } else if (oppositePoint === b) {
+                    const denom = lenA - lenB + lenC;
+                    if (Math.abs(denom) < 1e-6) throw new Error('Không thể dựng đường tròn bàng tiếp với tam giác suy biến');
+                    center = {
+                        type: 'Point',
+                        x: (lenA * a.x - lenB * b.x + lenC * c.x) / denom,
+                        y: (lenA * a.y - lenB * b.y + lenC * c.y) / denom
+                    };
+                } else {
+                    const denom = lenA + lenB - lenC;
+                    if (Math.abs(denom) < 1e-6) throw new Error('Không thể dựng đường tròn bàng tiếp với tam giác suy biến');
+                    center = {
+                        type: 'Point',
+                        x: (lenA * a.x + lenB * b.x - lenC * c.x) / denom,
+                        y: (lenA * a.y + lenB * b.y - lenC * c.y) / denom
+                    };
+                }
+
+                return { center, radius: Math.abs(signedDistanceToLine(center, b, c)) };
+            }
+
+            function buildRenderedLine(p1, p2, type = 'Line') {
+                const lineObj = { type, p1, p2 };
+                renderElements.push(lineObj);
+                return lineObj;
+            }
+
+            const rightAngleMarkerKeys = new Set();
+
+            function makeRightAngleKey(vertex, arm1, arm2) {
+                const lineDir = (arm) => {
+                    let angle = Math.atan2(arm.y - vertex.y, arm.x - vertex.x);
+                    if (angle < 0) angle += Math.PI;
+                    if (angle >= Math.PI - 1e-9) angle -= Math.PI;
+                    return angle.toFixed(4);
+                };
+                const sorted = [lineDir(arm1), lineDir(arm2)].sort();
+                return `${vertex.x.toFixed(2)},${vertex.y.toFixed(2)}|${sorted[0]}|${sorted[1]}`;
+            }
+
+            function isRightAngleDegrees(value) {
+                if (typeof value !== 'number') return false;
+                const normalized = Math.abs(value % 180);
+                return Math.abs(normalized - 90) < 1e-6;
+            }
+
+            function arePerpendicularAt(vertex, arm1, arm2) {
+                const v1x = arm1.x - vertex.x;
+                const v1y = arm1.y - vertex.y;
+                const v2x = arm2.x - vertex.x;
+                const v2y = arm2.y - vertex.y;
+                const len1 = Math.hypot(v1x, v1y);
+                const len2 = Math.hypot(v2x, v2y);
+                if (len1 < 1e-6 || len2 < 1e-6) return false;
+                const cosAngle = (v1x * v2x + v1y * v2y) / (len1 * len2);
+                return Math.abs(cosAngle) < 0.02;
+            }
+
+            function buildRightAngleMarker(vertex, arm1, arm2) {
+                const key = makeRightAngleKey(vertex, arm1, arm2);
+                if (rightAngleMarkerKeys.has(key)) return null;
+                rightAngleMarkerKeys.add(key);
+                const marker = { type: 'RightAngle', a: arm1, h: vertex, b: arm2 };
+                renderElements.push(marker);
+                return marker;
+            }
+
+            function assignConstructedPoint(name, pointVal) {
+                pointVal.name = name;
+                pointVal.isFree = false;
+                runtimeScope[name] = pointVal;
+                dependentPoints.push(pointVal);
+                globalPoints[name] = { x: pointVal.x, y: pointVal.y };
+            }
+
+            function flattenRenderableItems(items) {
+                return items.flatMap(item => {
+                    if (!item) return [];
+                    if (item.type === 'PointSet' || item.type === 'GeometrySet') {
+                        return flattenRenderableItems(item.items || []);
+                    }
+                    if (item.type === 'Polygon') {
+                        return [
+                            item,
+                            ...(item.points || []),
+                            ...(item.segments || [])
+                        ];
+                    }
+                    if (item.type === 'Circle' && item.center) {
+                        return [item, item.center];
+                    }
+                    return [item];
+                });
+            }
+
+            function buildEqualSegmentsMarker(segments, count = 1) {
+                const marker = { type: 'EqualSegments', segments, count };
+                renderElements.push(marker);
+                return marker;
+            }
+
+            function solveLineLikeIntersection(first, second) {
+                const rX = first.p2.x - first.p1.x;
+                const rY = first.p2.y - first.p1.y;
+                const sX = second.p2.x - second.p1.x;
+                const sY = second.p2.y - second.p1.y;
+                const denom = cross2D(rX, rY, sX, sY);
+                if (Math.abs(denom) < 1e-6) {
+                    throw new Error('Hai đường không có giao điểm duy nhất');
+                }
+
+                const qpX = second.p1.x - first.p1.x;
+                const qpY = second.p1.y - first.p1.y;
+                const t = cross2D(qpX, qpY, sX, sY) / denom;
+                const u = cross2D(qpX, qpY, rX, rY) / denom;
+                const eps = 1e-6;
+
+                const isOnFirst = first.type === 'Line'
+                    || (first.type === 'Ray' && t >= -eps)
+                    || (first.type === 'Segment' && t >= -eps && t <= 1 + eps);
+                const isOnSecond = second.type === 'Line'
+                    || (second.type === 'Ray' && u >= -eps)
+                    || (second.type === 'Segment' && u >= -eps && u <= 1 + eps);
+
+                if (!isOnFirst || !isOnSecond) {
+                    throw new Error('Hai đối tượng không cắt nhau trong phần hình học đang xét');
+                }
+
+                return buildPoint(first.p1.x + t * rX, first.p1.y + t * rY);
+            }
+
+            function solveCircleCircleIntersections(c1, c2) {
+                const d = distanceBetween(c1.center, c2.center);
+                if (d < 1e-6 && Math.abs(c1.radius - c2.radius) < 1e-6) {
+                    throw new Error('Hai đường tròn trùng nhau nên không có giao điểm duy nhất');
+                }
+                if (d > c1.radius + c2.radius + 1e-6 || d < Math.abs(c1.radius - c2.radius) - 1e-6 || d < 1e-6) {
+                    throw new Error('Hai đường tròn không cắt nhau');
+                }
+
+                const a = (c1.radius * c1.radius - c2.radius * c2.radius + d * d) / (2 * d);
+                const hSq = c1.radius * c1.radius - a * a;
+                const h = Math.sqrt(Math.max(0, hSq));
+                const ux = (c2.center.x - c1.center.x) / d;
+                const uy = (c2.center.y - c1.center.y) / d;
+                const baseX = c1.center.x + a * ux;
+                const baseY = c1.center.y + a * uy;
+
+                if (h < 1e-6) {
+                    return [buildPoint(baseX, baseY)];
+                }
+
+                const offsetX = -uy * h;
+                const offsetY = ux * h;
+                return [
+                    buildSpecialPoint(baseX + offsetX, baseY + offsetY, 'intersection'),
+                    buildSpecialPoint(baseX - offsetX, baseY - offsetY, 'intersection')
+                ];
+            }
+
+            function solveLineCircleIntersections(lineObj, circleObj) {
+                const dx = lineObj.p2.x - lineObj.p1.x;
+                const dy = lineObj.p2.y - lineObj.p1.y;
+                const fx = lineObj.p1.x - circleObj.center.x;
+                const fy = lineObj.p1.y - circleObj.center.y;
+
+                const a = dx * dx + dy * dy;
+                if (a < 1e-6) {
+                    throw new Error('Không thể tìm giao khi đường bị suy biến');
+                }
+                const b = 2 * (fx * dx + fy * dy);
+                const c = fx * fx + fy * fy - circleObj.radius * circleObj.radius;
+                const discriminant = b * b - 4 * a * c;
+
+                if (discriminant < -1e-6) {
+                    throw new Error('Đường và đường tròn không cắt nhau');
+                }
+
+                const eps = 1e-6;
+                const tValues = [];
+                if (Math.abs(discriminant) <= 1e-6) {
+                    tValues.push(-b / (2 * a));
+                } else {
+                    const sqrtD = Math.sqrt(discriminant);
+                    tValues.push((-b + sqrtD) / (2 * a), (-b - sqrtD) / (2 * a));
+                }
+
+                const filtered = tValues.filter(t => {
+                    if (lineObj.type === 'Line') return true;
+                    if (lineObj.type === 'Ray') return t >= -eps;
+                    if (lineObj.type === 'Segment') return t >= -eps && t <= 1 + eps;
+                    return false;
+                });
+
+                if (filtered.length === 0) {
+                    throw new Error('Đường và đường tròn không cắt nhau trong phần hình học đang xét');
+                }
+
+                return filtered.map(t => {
+                    const point = buildSpecialPoint(lineObj.p1.x + t * dx, lineObj.p1.y + t * dy, 'intersection');
+                    if (Math.abs(signedDistanceToLine(point, lineObj.p1, lineObj.p2)) <= 1e-6) {
+                        return point;
+                    }
+                    return point;
+                });
+            }
+
+            function solveAngleBisector(p1, vertex, p2) {
+                const dir1 = normalizeVector(p1.x - vertex.x, p1.y - vertex.y);
+                const dir2 = normalizeVector(p2.x - vertex.x, p2.y - vertex.y);
+                if (!dir1 || !dir2) {
+                    throw new Error('Không thể dựng phân giác khi một cạnh của góc bị suy biến');
+                }
+
+                const sum = normalizeVector(dir1.x + dir2.x, dir1.y + dir2.y);
+                if (!sum) {
+                    throw new Error('Không thể dựng phân giác cho góc bẹt');
+                }
+
+                return buildRenderedLine(vertex, buildPoint(vertex.x + sum.x * 100, vertex.y + sum.y * 100), 'Line');
+            }
+
+            function buildTangentLineAtPointOnCircle(point, circleObj) {
+                const radiusDx = point.x - circleObj.center.x;
+                const radiusDy = point.y - circleObj.center.y;
+                renderElements.push({ type: 'PointMarker', point, markerRole: 'tangent' });
+                const directionPoint = {
+                    type: 'Point',
+                    x: point.x - radiusDy,
+                    y: point.y + radiusDx
+                };
+                return buildRenderedLine(point, directionPoint, 'Line');
+            }
+
+            function solveTangents(point, circleObj) {
+                const d = distanceBetween(point, circleObj.center);
+                const r = circleObj.radius;
+                const eps = 1.5;
+
+                if (d < r - eps) {
+                    throw new Error('Hàm tangents() không áp dụng khi điểm nằm trong đường tròn');
+                }
+
+                if (Math.abs(d - r) <= eps) {
+                    return {
+                        type: 'TangentResult',
+                        mode: 'on',
+                        line: buildTangentLineAtPointOnCircle(point, circleObj)
+                    };
+                }
+
+                const alpha = Math.atan2(point.y - circleObj.center.y, point.x - circleObj.center.x);
+                const beta = Math.acos(r / d);
+                const tangentPoint1 = buildSpecialPoint(
+                    circleObj.center.x + r * Math.cos(alpha + beta),
+                    circleObj.center.y + r * Math.sin(alpha + beta),
+                    'tangent'
+                );
+                const tangentPoint2 = buildSpecialPoint(
+                    circleObj.center.x + r * Math.cos(alpha - beta),
+                    circleObj.center.y + r * Math.sin(alpha - beta),
+                    'tangent'
+                );
+
+                renderElements.push(
+                    { type: 'PointMarker', point: tangentPoint1, markerRole: 'tangent' },
+                    { type: 'PointMarker', point: tangentPoint2, markerRole: 'tangent' }
+                );
+
+                return {
+                    type: 'TangentResult',
+                    mode: 'outside',
+                    points: [tangentPoint1, tangentPoint2],
+                    lines: [
+                        buildRenderedLine(point, tangentPoint1, 'Line'),
+                        buildRenderedLine(point, tangentPoint2, 'Line')
+                    ]
+                };
+            }
+
+            function evalExpr(node) {
+                if (node.type === 'Identifier') {
+                    if (runtimeScope[node.name]) {
+                        return runtimeScope[node.name];
+                    }
+                    if (currentAssignmentName && node.name === currentAssignmentName) {
+                        return { type: 'IdentifierTarget', name: node.name };
+                    }
+                    if (globalPoints[node.name]) {
+                        return { type: 'Point', name: node.name, ...globalPoints[node.name] };
+                    }
+                    throw new Error(`Biến "${node.name}" chưa được định nghĩa`);
+                }
+                if (node.type === 'Number') {
+                    return { type: 'Number', value: node.value };
+                }
+                if (node.type === 'Equality') {
+                    return {
+                        type: 'EqualityExpr',
+                        left: evalExpr(node.left),
+                        right: evalExpr(node.right)
+                    };
+                }
+                if (node.type === 'Multiply') {
+                    const leftVal = evalExpr(node.left);
+                    const rightVal = evalExpr(node.right);
+                    if (leftVal?.type === 'Number' && rightVal) {
+                        return { type: 'ScaledValue', factor: leftVal.value, value: rightVal };
+                    }
+                    if (rightVal?.type === 'Number' && leftVal) {
+                        return { type: 'ScaledValue', factor: rightVal.value, value: leftVal };
+                    }
+                    throw new Error('Biểu thức nhân chỉ hỗ trợ dạng số * đối tượng hình học');
+                }
+                if (node.type === 'FunctionCall') {
+                    const centerNameFunctions = ['incircle', 'circum', 'circumcircle'];
+                    const evaledArgs = centerNameFunctions.includes(node.name)
+                        ? [evalCenterNameArg(node.args[0]), ...node.args.slice(1).map(evalExpr)]
+                        : node.args.map(evalExpr);
+                    return executeFunction(node.name, evaledArgs);
+                }
+            }
+
+            function evalCenterNameArg(node) {
+                if (node?.type !== 'Identifier') {
+                    throw new Error('Tham số tâm phải là tên biến, ví dụ incircle(O, A, B, C)');
+                }
+                if (runtimeScope[node.name]) {
+                    throw new Error(`Tâm "${node.name}" đã được định nghĩa, hãy chọn tên khác`);
+                }
+                return { type: 'IdentifierTarget', name: node.name };
+            }
+
+            function extractSegmentConstraintTerm(expr) {
+                if (!expr) return null;
+                if (expr.type === 'Segment') {
+                    return { kind: 'actual', segment: expr, factor: 1 };
+                }
+                if (expr.type === 'SegmentTemplate') {
+                    return { kind: 'template', template: expr, factor: 1 };
+                }
+                if (expr.type === 'ScaledValue') {
+                    const nested = extractSegmentConstraintTerm(expr.value);
+                    if (!nested) return null;
+                    return { ...nested, factor: nested.factor * expr.factor };
+                }
+                return null;
+            }
+
+            function resolveSegmentEqualityConstraint(distanceArg, origin, currentName, fnName) {
+                if (distanceArg?.type !== 'EqualityExpr') return null;
+
+                const leftTerm = extractSegmentConstraintTerm(distanceArg.left);
+                const rightTerm = extractSegmentConstraintTerm(distanceArg.right);
+                const actualTerm = leftTerm?.kind === 'actual' ? leftTerm : rightTerm?.kind === 'actual' ? rightTerm : null;
+                const templateTerm = leftTerm?.kind === 'template' ? leftTerm : rightTerm?.kind === 'template' ? rightTerm : null;
+
+                if (!actualTerm || !templateTerm) {
+                    throw new Error(`Hàm ${fnName}() chỉ hỗ trợ ràng buộc như segment(H,K) = segment(H,G) hoặc có nhân vô hướng`);
+                }
+                if (templateTerm.template.targetName !== currentName) {
+                    throw new Error('Vế chứa điểm cần dựng phải dùng chính biến đang gán, ví dụ segment(H,G)');
+                }
+                if (templateTerm.template.anchor?.name !== origin.name) {
+                    throw new Error(`Đoạn chứa điểm cần dựng phải có cùng gốc với ${fnName}(), ví dụ segment(H,G)`);
+                }
+                if (Math.abs(templateTerm.factor) < 1e-9) {
+                    throw new Error('Hệ số nhân ở vế chứa điểm cần dựng không được bằng 0');
+                }
+
+                return {
+                    length: Math.abs(actualTerm.factor / templateTerm.factor) * distanceBetween(actualTerm.segment.p1, actualTerm.segment.p2),
+                    equalMarkerSegment: Math.abs(actualTerm.factor - templateTerm.factor) < 1e-9 ? actualTerm.segment : null
+                };
+            }
+
+            function buildCircleConstruction(centerName, center, radius, role) {
+                const centerPoint = {
+                    type: 'Point',
+                    x: center.x,
+                    y: center.y,
+                    name: centerName,
+                    isFree: false,
+                    specialRole: role === 'incircle' ? 'incenter' : role === 'circumcircle' ? 'circumcenter' : null
+                };
+                const circle = buildRenderedCircle(centerPoint, radius, role);
+                return {
+                    type: 'CircleConstruction',
+                    centerName,
+                    center: centerPoint,
+                    circle
+                };
+            }
+
+            function executeCircleWithCenter(name, centerTarget, a, b, c, role) {
+                if (centerTarget?.type !== 'IdentifierTarget') {
+                    throw new Error(`Hàm ${name}() cần dạng ${name}(O, A, B, C) với O là tên tâm`);
+                }
+                if (a?.type !== 'Point' || b?.type !== 'Point' || c?.type !== 'Point') {
+                    throw new Error(`Hàm ${name}() cần 3 đỉnh tam giác A, B, C`);
+                }
+                const solved = role === 'incircle' ? solveIncenter(a, b, c) : solveCircumcircle(a, b, c);
+                return buildCircleConstruction(centerTarget.name, solved.center, solved.radius, role);
+            }
+
+            function executeOnCircle(circleObj, angleArg, fnName = 'on') {
+                if (circleObj?.type !== 'Circle') {
+                    throw new Error(`Hàm ${fnName}() cần một đường tròn hợp lệ`);
+                }
+                let theta = 0;
+                if (angleArg?.type === 'Number') {
+                    theta = angleArg.value * Math.PI / 180;
+                } else if (!angleArg && currentAssignmentName && globalPoints[currentAssignmentName]) {
+                    const existing = globalPoints[currentAssignmentName];
+                    theta = Math.atan2(existing.y - circleObj.center.y, existing.x - circleObj.center.x);
+                } else if (!angleArg) {
+                    theta = -Math.PI / 4;
+                } else {
+                    throw new Error(`Hàm ${fnName}() chỉ nhận thêm góc số ở tham số thứ hai`);
+                }
+                return {
+                    type: 'Point',
+                    x: circleObj.center.x + circleObj.radius * Math.cos(theta),
+                    y: circleObj.center.y + circleObj.radius * Math.sin(theta),
+                    isDraggable: true,
+                    dragConstraint: { type: 'circle' }
+                };
+            }
+
+            function executeOnRay(origin, directionPoint, distanceArg, fnName = 'on') {
+                if (origin?.type !== 'Point' || directionPoint?.type !== 'Point') {
+                    throw new Error(`Hàm ${fnName}() cần tia hợp lệ hoặc 2 điểm xác định tia`);
+                }
+                const dx = directionPoint.x - origin.x;
+                const dy = directionPoint.y - origin.y;
+                const len = Math.hypot(dx, dy);
+                if (len === 0) {
+                    throw new Error('Không thể đặt điểm trên tia khi 2 điểm xác định tia trùng nhau');
+                }
+                if (distanceArg?.type !== 'EqualityExpr' && currentAssignmentName && globalPoints[currentAssignmentName]) {
+                    const projectedT = Math.max(0, projectionFactor(globalPoints[currentAssignmentName], origin, directionPoint));
+                    return {
+                        type: 'Point',
+                        x: origin.x + dx * projectedT,
+                        y: origin.y + dy * projectedT,
+                        isDraggable: true,
+                        dragConstraint: { type: 'ray', originName: origin.name, directionName: directionPoint.name }
+                    };
+                }
+                let length = len * 1.15;
+                let equalMarkerSegment = null;
+                if (distanceArg?.type === 'EqualityExpr') {
+                    const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
+                    length = resolved.length;
+                    equalMarkerSegment = resolved.equalMarkerSegment;
+                }
+                const point = {
+                    type: 'Point',
+                    x: origin.x + dx * (length / len),
+                    y: origin.y + dy * (length / len),
+                    isDraggable: true,
+                    dragConstraint: { type: 'ray', originName: origin.name, directionName: directionPoint.name }
+                };
+                if (equalMarkerSegment) {
+                    buildEqualSegmentsMarker([
+                        { type: 'Segment', p1: origin, p2: point },
+                        equalMarkerSegment
+                    ], nextRelationMarkerCount());
+                }
+                return point;
+            }
+
+            function executeOnLine(origin, directionPoint, distanceArg, fnName = 'on') {
+                if (origin?.type !== 'Point' || directionPoint?.type !== 'Point') {
+                    throw new Error(`Hàm ${fnName}() cần đường hợp lệ hoặc 2 điểm xác định đường thẳng`);
+                }
+                const dx = directionPoint.x - origin.x;
+                const dy = directionPoint.y - origin.y;
+                const len = Math.hypot(dx, dy);
+                if (len === 0) {
+                    throw new Error('Không thể đặt điểm trên đường khi 2 điểm xác định đường trùng nhau');
+                }
+                const hasFixedDistance = distanceArg?.type === 'EqualityExpr'
+                    || distanceArg?.type === 'Segment'
+                    || distanceArg?.type === 'Number';
+                if (!hasFixedDistance && currentAssignmentName && globalPoints[currentAssignmentName]) {
+                    const t = projectionFactor(globalPoints[currentAssignmentName], origin, directionPoint);
+                    return {
+                        type: 'Point',
+                        x: origin.x + dx * t,
+                        y: origin.y + dy * t,
+                        isDraggable: true,
+                        dragConstraint: origin.name && directionPoint.name
+                            ? { type: 'line', p1Name: origin.name, p2Name: directionPoint.name }
+                            : null
+                    };
+                }
+                let length = len * 1.15;
+                let equalMarkerSegment = null;
+                if (distanceArg?.type === 'EqualityExpr') {
+                    const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
+                    length = resolved.length;
+                    equalMarkerSegment = resolved.equalMarkerSegment;
+                } else if (hasFixedDistance) {
+                    length = getDistanceArg(origin, distanceArg, fnName);
+                }
+                const point = {
+                    type: 'Point',
+                    x: origin.x + dx * (length / len),
+                    y: origin.y + dy * (length / len),
+                    isDraggable: !hasFixedDistance,
+                    dragConstraint: !hasFixedDistance && origin.name && directionPoint.name
+                        ? { type: 'line', p1Name: origin.name, p2Name: directionPoint.name }
+                        : null
+                };
+                if (equalMarkerSegment) {
+                    buildEqualSegmentsMarker([
+                        { type: 'Segment', p1: origin, p2: point },
+                        equalMarkerSegment
+                    ], nextRelationMarkerCount());
+                } else if (distanceArg?.type === 'Segment') {
+                    buildEqualSegmentsMarker([
+                        { type: 'Segment', p1: origin, p2: point },
+                        distanceArg
+                    ], nextRelationMarkerCount());
+                }
+                return point;
+            }
+
+            function executeOnSegment(start, end, ratioArg, fnName = 'on') {
+                if (start?.type !== 'Point' || end?.type !== 'Point') {
+                    throw new Error(`Hàm ${fnName}() cần đoạn thẳng hợp lệ hoặc 2 điểm xác định đoạn`);
+                }
+                const dx = end.x - start.x;
+                const dy = end.y - start.y;
+                const lenSq = dx * dx + dy * dy;
+                if (lenSq === 0) {
+                    throw new Error('Không thể đặt điểm trên đoạn khi 2 đầu mút trùng nhau');
+                }
+                const hasFixedRatio = ratioArg?.type === 'Number';
+                let t = 0.5;
+                if (hasFixedRatio) {
+                    t = Math.min(1, Math.max(0, ratioArg.value));
+                } else if (currentAssignmentName && globalPoints[currentAssignmentName]) {
+                    t = Math.min(1, Math.max(0, projectionFactor(globalPoints[currentAssignmentName], start, end)));
+                }
+                return {
+                    type: 'Point',
+                    x: start.x + dx * t,
+                    y: start.y + dy * t,
+                    isDraggable: !hasFixedRatio,
+                    dragConstraint: hasFixedRatio ? null : { type: 'segment', startName: start.name, endName: end.name }
+                };
+            }
+
+            function executeOnShape(shape, optionalArg) {
+                if (shape?.type === 'Circle') {
+                    return executeOnCircle(shape, optionalArg);
+                }
+                if (shape?.type === 'Ray') {
+                    return executeOnRay(shape.p1, shape.p2, optionalArg);
+                }
+                if (shape?.type === 'Line') {
+                    return executeOnLine(shape.p1, shape.p2, optionalArg);
+                }
+                if (shape?.type === 'Segment') {
+                    return executeOnSegment(shape.p1, shape.p2, optionalArg);
+                }
+                throw new Error('Hàm on() cần đường tròn, đường thẳng, tia hoặc đoạn thẳng');
+            }
+
+            function getRegionShapeArg(arg, fnName) {
+                if (arg?.type === 'Circle') {
+                    return { kind: 'circle', shape: arg };
+                }
+                if (arg?.type === 'Polygon') {
+                    return { kind: 'polygon', shape: arg };
+                }
+                throw new Error(`Hàm ${fnName}() cần đường tròn hoặc đa giác từ poly(...)`);
+            }
+
+            function polygonCentroid(vertices) {
+                const total = vertices.reduce((acc, vertex) => ({
+                    x: acc.x + vertex.x,
+                    y: acc.y + vertex.y
+                }), { x: 0, y: 0 });
+                return { x: total.x / vertices.length, y: total.y / vertices.length };
+            }
+
+            function isPointInPolygon(point, vertices) {
+                let inside = false;
+                for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+                    const xi = vertices[i].x;
+                    const yi = vertices[i].y;
+                    const xj = vertices[j].x;
+                    const yj = vertices[j].y;
+                    const intersects = ((yi > point.y) !== (yj > point.y))
+                        && (point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + 1e-12) + xi);
+                    if (intersects) inside = !inside;
+                }
+                return inside;
+            }
+
+            function defaultInsideCirclePoint(circle) {
+                return {
+                    x: circle.center.x + circle.radius * 0.35,
+                    y: circle.center.y
+                };
+            }
+
+            function defaultOutsideCirclePoint(circle) {
+                return {
+                    x: circle.center.x + circle.radius * 1.35,
+                    y: circle.center.y
+                };
+            }
+
+            function defaultInsidePolygonPoint(vertices) {
+                return polygonCentroid(vertices);
+            }
+
+            function defaultOutsidePolygonPoint(vertices) {
+                const centroid = polygonCentroid(vertices);
+                let maxDist = 1;
+                vertices.forEach(vertex => {
+                    maxDist = Math.max(maxDist, distanceBetween(centroid, vertex));
+                });
+                return { x: centroid.x + maxDist * 1.2, y: centroid.y };
+            }
+
+            function constrainInsideCircle(point, circle) {
+                const dx = point.x - circle.center.x;
+                const dy = point.y - circle.center.y;
+                const dist = Math.hypot(dx, dy);
+                const maxRadius = Math.max(circle.radius * 0.98, 1e-3);
+                if (dist <= maxRadius) return point;
+                if (dist < 1e-6) return defaultInsideCirclePoint(circle);
+                return {
+                    x: circle.center.x + dx * (maxRadius / dist),
+                    y: circle.center.y + dy * (maxRadius / dist)
+                };
+            }
+
+            function constrainOutsideCircle(point, circle) {
+                const dx = point.x - circle.center.x;
+                const dy = point.y - circle.center.y;
+                const dist = Math.hypot(dx, dy);
+                const minRadius = circle.radius * 1.02;
+                if (dist >= minRadius) return point;
+                if (dist < 1e-6) return defaultOutsideCirclePoint(circle);
+                return {
+                    x: circle.center.x + dx * (minRadius / dist),
+                    y: circle.center.y + dy * (minRadius / dist)
+                };
+            }
+
+            function constrainInsidePolygon(point, vertices) {
+                if (isPointInPolygon(point, vertices)) return point;
+                const centroid = polygonCentroid(vertices);
+                let low = 0;
+                let high = 1;
+                for (let i = 0; i < 24; i++) {
+                    const mid = (low + high) / 2;
+                    const candidate = {
+                        x: point.x + (centroid.x - point.x) * mid,
+                        y: point.y + (centroid.y - point.y) * mid
+                    };
+                    if (isPointInPolygon(candidate, vertices)) low = mid;
+                    else high = mid;
+                }
+                return {
+                    x: point.x + (centroid.x - point.x) * low * 0.98,
+                    y: point.y + (centroid.y - point.y) * low * 0.98
+                };
+            }
+
+            function constrainOutsidePolygon(point, vertices) {
+                if (!isPointInPolygon(point, vertices)) return point;
+                const centroid = polygonCentroid(vertices);
+                const dx = point.x - centroid.x;
+                const dy = point.y - centroid.y;
+                const baseLen = Math.hypot(dx, dy);
+                if (baseLen < 1e-6) {
+                    return defaultOutsidePolygonPoint(vertices);
+                }
+                let scale = 1;
+                for (let i = 0; i < 30; i++) {
+                    scale *= 1.2;
+                    const candidate = {
+                        x: centroid.x + dx * scale,
+                        y: centroid.y + dy * scale
+                    };
+                    if (!isPointInPolygon(candidate, vertices)) return candidate;
+                }
+                return {
+                    x: centroid.x + (dx / baseLen) * 200,
+                    y: centroid.y + (dy / baseLen) * 200
+                };
+            }
+
+            function executeRegionPoint(mode, shape, fnName) {
+                const region = getRegionShapeArg(shape, fnName);
+                let coords = currentAssignmentName && globalPoints[currentAssignmentName]
+                    ? { ...globalPoints[currentAssignmentName] }
+                    : region.kind === 'circle'
+                        ? (mode === 'inside' ? defaultInsideCirclePoint(region.shape) : defaultOutsideCirclePoint(region.shape))
+                        : (mode === 'inside'
+                            ? defaultInsidePolygonPoint(region.shape.points)
+                            : defaultOutsidePolygonPoint(region.shape.points));
+
+                if (region.kind === 'circle') {
+                    coords = mode === 'inside'
+                        ? constrainInsideCircle(coords, region.shape)
+                        : constrainOutsideCircle(coords, region.shape);
+                } else {
+                    coords = mode === 'inside'
+                        ? constrainInsidePolygon(coords, region.shape.points)
+                        : constrainOutsidePolygon(coords, region.shape.points);
+                }
+
+                return {
+                    type: 'Point',
+                    x: coords.x,
+                    y: coords.y,
+                    isDraggable: true,
+                    specialRole: mode,
+                    dragConstraint: { type: mode, regionKind: region.kind }
+                };
+            }
+
+            function executeInside(shape) {
+                return executeRegionPoint('inside', shape, 'inside');
+            }
+
+            function executeOutside(shape) {
+                return executeRegionPoint('outside', shape, 'outside');
+            }
+
+            function parseLegacyOnArgs(name, args) {
+                if (name === 'on_circle' || name === 'point_on_circle') {
+                    return { kind: 'circle', circle: getCircleFromArg(args[0], name), optional: args[1] };
+                }
+                if (name === 'on_segment' || name === 'point_on_segment') {
+                    if (args[0]?.type === 'Segment') {
+                        return { kind: 'segment', start: args[0].p1, end: args[0].p2, optional: args[1] };
+                    }
+                    return { kind: 'segment', start: args[0], end: args[1], optional: args[2] };
+                }
+                if (name === 'on_ray' || name === 'point_on_ray') {
+                    const rayArg = args[0]?.type === 'Ray' ? args[0] : null;
+                    return {
+                        kind: 'ray',
+                        origin: rayArg ? rayArg.p1 : args[0],
+                        direction: rayArg ? rayArg.p2 : args[1],
+                        optional: rayArg ? args[1] : args[2]
+                    };
+                }
+                if (name === 'on_line' || name === 'point_on_line') {
+                    const lineArg = (args[0]?.type === 'Line' || args[0]?.type === 'Segment' || args[0]?.type === 'Ray')
+                        ? args[0]
+                        : null;
+                    return {
+                        kind: 'line',
+                        origin: lineArg ? lineArg.p1 : args[0],
+                        direction: lineArg ? lineArg.p2 : args[1],
+                        optional: lineArg ? args[1] : args[2]
+                    };
+                }
+                return null;
+            }
+
+            function executeFunction(name, args) {
+                if (name === 'points') {
+                    const rawFirstArg = args[0];
+                    const mode = typeof rawFirstArg === 'string' ? rawFirstArg : 'fixed';
+                    return {
+                        type: 'PointSpec',
+                        mode,
+                        params: typeof rawFirstArg === 'string' ? args.slice(1) : args
+                    };
+                }
+                if (name === 'midpoint') {
+                    const p1 = args[0];
+                    const p2 = args[1];
+                    const markerCountArg = args[2];
+                    if (p1?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error("Hàm midpoint() cần 2 tham số đầu vào là các điểm");
+                    }
+                    const markerCount = nextRelationMarkerCount(markerCountArg?.type === 'Number' ? markerCountArg.value : null);
+                    return {
+                        type: 'Point',
+                        x: (p1.x + p2.x) / 2,
+                        y: (p1.y + p2.y) / 2,
+                        specialRole: 'midpoint',
+                        markerData: { p1, p2, count: markerCount }
+                    };
+                }
+                if (name === 'distance') {
+                    const p1 = args[0];
+                    const p2 = args[1];
+                    if (p1?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error('Hàm distance() cần 2 điểm');
+                    }
+                    return { type: 'Number', value: distanceBetween(p1, p2) };
+                }
+                if (name === 'line') {
+                    if (args.length === 1) {
+                        const base = args[0];
+                        if (base?.type === 'Segment' || base?.type === 'Ray') {
+                            return buildRenderedLine(base.p1, base.p2, 'Line');
+                        }
+                        throw new Error('Hàm line() với 1 tham số chỉ nhận segment(...) hoặc ray(...)');
+                    }
+                    const p1 = args[0];
+                    const p2 = args[1];
+                    if (p1?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error("Hàm line() cần 2 điểm để xác định đường");
+                    }
+                    return buildRenderedLine(p1, p2, 'Line');
+                }
+                if (name === 'ray') {
+                    const p1 = args[0];
+                    const p2 = args[1];
+                    if (p1?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error('Hàm ray() cần 2 điểm để xác định tia');
+                    }
+                    return buildRenderedLine(p1, p2, 'Ray');
+                }
+                if (name === 'parallel') {
+                    const point = args[0];
+                    const lineObj = getLineFromArg(args[1], 'parallel');
+                    if (point?.type !== 'Point') {
+                        throw new Error('Hàm parallel() cần điểm đầu tiên và một đoạn, đường hoặc tia');
+                    }
+                    const dx = lineObj.p2.x - lineObj.p1.x;
+                    const dy = lineObj.p2.y - lineObj.p1.y;
+                    if (Math.hypot(dx, dy) < 1e-6) {
+                        throw new Error('Không thể dựng đường song song khi đối tượng tham chiếu suy biến');
+                    }
+                    const directionPoint = {
+                        type: 'Point',
+                        x: point.x + dx,
+                        y: point.y + dy
+                    };
+                    return buildRenderedLine(point, directionPoint, 'Line');
+                }
+                if (name === 'segment') {
+                    const p1 = args[0];
+                    const p2 = args[1];
+                    if ((p1?.type === 'Point' && p2?.type === 'IdentifierTarget') || (p2?.type === 'Point' && p1?.type === 'IdentifierTarget')) {
+                        return {
+                            type: 'SegmentTemplate',
+                            anchor: p1?.type === 'Point' ? p1 : p2,
+                            targetName: p1?.type === 'IdentifierTarget' ? p1.name : p2.name
+                        };
+                    }
+                    if (p1?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error("Hàm segment() cần 2 điểm để xác định đoạn thẳng");
+                    }
+                    const seg = { type: 'Segment', p1, p2 };
+                    renderElements.push(seg);
+                    return seg;
+                }
+                if (name === 'project') {
+                    const a = args[0];
+                    const lineObj = args[1];
+                    if (a?.type !== 'Point') {
+                        throw new Error("Tham số thứ nhất của project() phải là 1 điểm");
+                    }
+                    if (lineObj?.type !== 'Line' && lineObj?.type !== 'Segment') {
+                        throw new Error("Tham số thứ hai của project() phải là 1 đường (line) hoặc đoạn thẳng (segment)");
+                    }
+                    const b = lineObj.p1;
+                    const c = lineObj.p2;
+                    
+                    // Vectơ hình chiếu
+                    const bcX = c.x - b.x;
+                    const bcY = c.y - b.y;
+                    const lenSq = bcX * bcX + bcY * bcY;
+                    if (lenSq === 0) return { type: 'Point', x: b.x, y: b.y };
+                    
+                    const baX = a.x - b.x;
+                    const baY = a.y - b.y;
+                    const dot = baX * bcX + baY * bcY;
+                    const t = dot / lenSq;
+                    
+                    const projPt = {
+                        type: 'Point',
+                        x: b.x + t * bcX,
+                        y: b.y + t * bcY
+                    };
+                    
+                    // Vẽ biểu tượng góc vuông
+                    buildRightAngleMarker(projPt, a, b);
+                    
+                    return projPt;
+                }
+                if (name === 'reflect') {
+                    const p = args[0];
+                    const lineObj = getLineFromArg(args[1], 'reflect');
+                    if (p?.type !== 'Point') {
+                        throw new Error('Hàm reflect() cần dạng reflect(P, đường) với P là điểm');
+                    }
+                    const reflected = reflectPointAcrossLine(p, lineObj.p1, lineObj.p2);
+                    return { type: 'Point', x: reflected.x, y: reflected.y };
+                }
+                if (name === 'inside') {
+                    if (args.length !== 1) {
+                        throw new Error('Hàm inside() hỗ trợ inside(đường tròn) hoặc inside(đa giác)');
+                    }
+                    return executeInside(args[0]);
+                }
+                if (name === 'outside') {
+                    if (args.length !== 1) {
+                        throw new Error('Hàm outside() hỗ trợ outside(đường tròn) hoặc outside(đa giác)');
+                    }
+                    return executeOutside(args[0]);
+                }
+                if (name === 'on' || name === 'point_on') {
+                    if (args.length === 0 || args.length > 2) {
+                        throw new Error('Hàm on() hỗ trợ on(hình) hoặc on(hình, ràng buộc)');
+                    }
+                    return executeOnShape(args[0], args[1]);
+                }
+                if (name === 'on_ray' || name === 'point_on_ray' || name === 'on_line' || name === 'point_on_line' || name === 'on_segment' || name === 'point_on_segment' || name === 'on_circle' || name === 'point_on_circle') {
+                    const parsed = parseLegacyOnArgs(name, args);
+                    if (!parsed) {
+                        throw new Error(`Không nhận dạng được lệnh ${name}()`);
+                    }
+                    if (parsed.kind === 'circle') {
+                        return executeOnCircle(parsed.circle, parsed.optional, name);
+                    }
+                    if (parsed.kind === 'segment') {
+                        return executeOnSegment(parsed.start, parsed.end, parsed.optional, name);
+                    }
+                    if (parsed.kind === 'ray') {
+                        return executeOnRay(parsed.origin, parsed.direction, parsed.optional, name);
+                    }
+                    return executeOnLine(parsed.origin, parsed.direction, parsed.optional, name);
+                }
+                if (name === 'angle') {
+                    const vertex = args[0];
+                    const referencePoint = args[1];
+                    const angleArg = args[2];
+                    if (vertex?.type !== 'Point' || referencePoint?.type !== 'Point' || angleArg?.type !== 'Number') {
+                        throw new Error('Hàm angle() cần dạng angle(A, B, 60) với 2 điểm và 1 góc số');
+                    }
+                    const dx = referencePoint.x - vertex.x;
+                    const dy = referencePoint.y - vertex.y;
+                    const baseLength = Math.hypot(dx, dy);
+                    if (baseLength === 0) {
+                        throw new Error('Không thể dựng tia góc khi A và B trùng nhau');
+                    }
+                    const angleRad = Math.atan2(dy, dx) + toRadians(angleArg.value);
+                    const rayLength = currentAssignmentName && globalPoints[currentAssignmentName]
+                        ? distanceBetween(vertex, globalPoints[currentAssignmentName])
+                        : baseLength * 1.1;
+                    const point = {
+                        type: 'Point',
+                        x: vertex.x + rayLength * Math.cos(angleRad),
+                        y: vertex.y + rayLength * Math.sin(angleRad),
+                        isDraggable: !!currentAssignmentName,
+                        dragConstraint: currentAssignmentName
+                            ? { type: 'angleRay', vertexName: vertex.name, referenceName: referencePoint.name, angleDeg: angleArg.value }
+                            : null
+                    };
+                    if (isRightAngleDegrees(angleArg.value)) {
+                        buildRightAngleMarker(vertex, referencePoint, point);
+                    }
+                    buildRenderedLine(vertex, point, 'Ray');
+                    return point;
+                }
+                if (name === 'poly' || name === 'polygon') {
+                    const points = args.filter(arg => arg?.type === 'Point');
+                    if (points.length < 3) {
+                        throw new Error('Hàm poly() cần ít nhất 3 điểm');
+                    }
+                    if (points.length !== args.length) {
+                        throw new Error('Tất cả tham số của poly() phải là điểm');
+                    }
+                    const segments = [];
+                    for (let i = 0; i < points.length; i++) {
+                        const seg = {
+                            type: 'Segment',
+                            p1: points[i],
+                            p2: points[(i + 1) % points.length]
+                        };
+                        segments.push(seg);
+                        renderElements.push(seg);
+                    }
+                    for (let i = 0; i < points.length; i++) {
+                        const prev = points[(i - 1 + points.length) % points.length];
+                        const curr = points[i];
+                        const next = points[(i + 1) % points.length];
+                        if (arePerpendicularAt(curr, prev, next)) {
+                            buildRightAngleMarker(curr, prev, next);
+                        }
+                    }
+                    return { type: 'Polygon', points, segments };
+                }
+                if (name === 'circle') {
+                    const center = args[0];
+                    const radiusArg = args[1];
+                    if (center?.type !== 'Point') {
+                        throw new Error("Tham số đầu của circle() phải là 1 điểm tâm");
+                    }
+                    let radius = 50;
+                    if (radiusArg?.type === 'Point') {
+                        const dx = radiusArg.x - center.x;
+                        const dy = radiusArg.y - center.y;
+                        radius = Math.sqrt(dx * dx + dy * dy);
+                    } else if (radiusArg?.type === 'Number') {
+                        radius = radiusArg.value;
+                    } else {
+                        throw new Error("Tham số thứ hai của circle() phải là 1 điểm hoặc một giá trị số bán kính");
+                    }
+                    return buildRenderedCircle(center, radius, 'free');
+                }
+                if (name === 'intersect' || name === 'intersection') {
+                    const first = args[0];
+                    const second = args[1];
+                    const isFirstLineLike = first?.type === 'Line' || first?.type === 'Segment' || first?.type === 'Ray';
+                    const isSecondLineLike = second?.type === 'Line' || second?.type === 'Segment' || second?.type === 'Ray';
+                    if (isFirstLineLike && isSecondLineLike) {
+                        const point = solveLineLikeIntersection(first, second);
+                        point.specialRole = 'intersection';
+                        return { type: 'PointSet', items: [point] };
+                    }
+                    if (first?.type === 'Circle' && second?.type === 'Circle') {
+                        return { type: 'PointSet', items: solveCircleCircleIntersections(first, second) };
+                    }
+                    if (isFirstLineLike && second?.type === 'Circle') {
+                        return { type: 'PointSet', items: solveLineCircleIntersections(first, second) };
+                    }
+                    if (first?.type === 'Circle' && isSecondLineLike) {
+                        return { type: 'PointSet', items: solveLineCircleIntersections(second, first) };
+                    }
+                    throw new Error('Hàm intersect() hiện hỗ trợ giao của hai đường, hai đường tròn, hoặc đường với đường tròn');
+                }
+                if (name === 'equal' || name === 'mark_equal') {
+                    const first = args[0];
+                    const second = args[1];
+                    const countArg = args[2];
+                    if (first?.type !== 'Segment' || second?.type !== 'Segment') {
+                        throw new Error('Hàm equal() cần 2 đoạn thẳng dạng segment(...)');
+                    }
+                    const count = nextRelationMarkerCount(countArg?.type === 'Number' ? countArg.value : null);
+                    return buildEqualSegmentsMarker([first, second], count);
+                }
+                if (name === 'render') {
+                    return { type: 'RenderSelection', items: flattenRenderableItems(args) };
+                }
+                if (name === 'incircle') {
+                    return executeCircleWithCenter('incircle', args[0], args[1], args[2], args[3], 'incircle');
+                }
+                if (name === 'circum' || name === 'circumcircle') {
+                    return executeCircleWithCenter(name === 'circum' ? 'circum' : 'circumcircle', args[0], args[1], args[2], args[3], 'circumcircle');
+                }
+                if (name === 'excircle') {
+                    const a = args[0];
+                    const b = args[1];
+                    const c = args[2];
+                    const oppositePoint = args[3] || a;
+                    if (a?.type !== 'Point' || b?.type !== 'Point' || c?.type !== 'Point' || oppositePoint?.type !== 'Point') {
+                        throw new Error('Hàm excircle() cần 3 điểm tam giác và đỉnh đối diện tùy chọn');
+                    }
+                    if (![a, b, c].includes(oppositePoint)) {
+                        throw new Error('Đỉnh thứ tư của excircle() phải là A, B hoặc C trong tam giác đã cho');
+                    }
+                    const { center, radius } = solveExcircle(a, b, c, oppositePoint);
+                    return buildRenderedCircle(center, radius, 'excircle');
+                }
+                if (name === 'bisector') {
+                    const p1 = args[0];
+                    const vertex = args[1];
+                    const p2 = args[2];
+                    if (p1?.type !== 'Point' || vertex?.type !== 'Point' || p2?.type !== 'Point') {
+                        throw new Error('Hàm bisector() cần 3 điểm, trong đó điểm giữa là đỉnh góc');
+                    }
+                    return solveAngleBisector(p1, vertex, p2);
+                }
+                if (name === 'triangle_bisectors') {
+                    const a = args[0];
+                    const b = args[1];
+                    const c = args[2];
+                    if (a?.type !== 'Point' || b?.type !== 'Point' || c?.type !== 'Point') {
+                        throw new Error('Hàm triangle_bisectors() cần 3 đỉnh tam giác');
+                    }
+                    return {
+                        type: 'GeometrySet',
+                        items: [
+                            solveAngleBisector(b, a, c),
+                            solveAngleBisector(a, b, c),
+                            solveAngleBisector(a, c, b)
+                        ]
+                    };
+                }
+                if (name === 'tangent') {
+                    const point = args[0];
+                    const circleObj = getCircleFromArg(args[1], 'tangent');
+                    if (point?.type !== 'Point') {
+                        throw new Error('Hàm tangent() cần điểm tiếp xúc ở tham số đầu');
+                    }
+                    const distToCenter = distanceBetween(point, circleObj.center);
+                    if (Math.abs(distToCenter - circleObj.radius) > 1.5) {
+                        throw new Error('Điểm tiếp xúc của tangent() phải nằm trên đường tròn');
+                    }
+                    const radiusDx = point.x - circleObj.center.x;
+                    const radiusDy = point.y - circleObj.center.y;
+                    renderElements.push({ type: 'PointMarker', point, markerRole: 'tangent' });
+                    const tangentPoint = {
+                        type: 'Point',
+                        x: point.x - radiusDy,
+                        y: point.y + radiusDx
+                    };
+                    return buildRenderedLine(point, tangentPoint, 'Line');
+                }
+                if (name === 'tangents') {
+                    const point = args[0];
+                    const circleObj = getCircleFromArg(args[1], 'tangents');
+                    if (point?.type !== 'Point') {
+                        throw new Error('Hàm tangents() cần một điểm và một đường tròn');
+                    }
+                    return solveTangents(point, circleObj);
+                }
+                throw new Error(`Không nhận dạng được hàm "${name}"`);
+            }
+
+            // Tiến hành thông dịch tuần tự từ trên xuống dưới
+            for (const stmt of ast) {
+                try {
+                    if (stmt.type === 'Assignment') {
+                        const outs = stmt.outputs;
+                        const spec = stmt.expression.type === 'FunctionCall' && stmt.expression.name === 'points'
+                            ? executeFunction('points', stmt.expression.args.map(getSpecArg))
+                            : null;
+
+                        if (spec) {
+                            const defaultCoords = getDefaultPointCoords(outs.length);
+                            const areFreePoints = spec.mode === 'free';
+
+                            outs.forEach((name, idx) => {
+                                if (!globalPoints[name]) {
+                                    globalPoints[name] = defaultCoords[idx] || { x: 100 + idx * 50, y: 100 + idx * 30 };
+                                }
+                                const pt = {
+                                    type: 'Point',
+                                    name: name,
+                                    ...globalPoints[name],
+                                    isFree: areFreePoints,
+                                    isDraggable: areFreePoints,
+                                    dragConstraint: null
+                                };
+                                runtimeScope[name] = pt;
+                                if (areFreePoints) {
+                                    freePoints.push(pt);
+                                } else {
+                                    dependentPoints.push(pt);
+                                }
+                            });
+                        } else {
+                            currentAssignmentName = outs.length === 1 ? outs[0] : null;
+                            const val = evalExpr(stmt.expression);
+                            currentAssignmentName = null;
+                            if (val && val.type === 'PointSet') {
+                                if (outs.length === 1) {
+                                    if (val.items.length !== 1) {
+                                        throw new Error(`Biểu thức trả về ${val.items.length} giao điểm, cần ${val.items.length} biến ở vế trái`);
+                                    }
+                                    const pointVal = val.items[0];
+                                    const name = outs[0];
+                                    pointVal.name = name;
+                                    pointVal.isFree = false;
+                                    runtimeScope[name] = pointVal;
+                                    dependentPoints.push(pointVal);
+                                    globalPoints[name] = { x: pointVal.x, y: pointVal.y };
+                                } else if (outs.length !== val.items.length) {
+                                    throw new Error(`Biểu thức trả về ${val.items.length} giao điểm, nhưng vế trái có ${outs.length} biến`);
+                                } else {
+                                    val.items.forEach((pointVal, idx) => {
+                                        const name = outs[idx];
+                                        pointVal.name = name;
+                                        pointVal.isFree = false;
+                                        runtimeScope[name] = pointVal;
+                                        dependentPoints.push(pointVal);
+                                        globalPoints[name] = { x: pointVal.x, y: pointVal.y };
+                                    });
+                                }
+                            } else if (val && val.type === 'CircleConstruction') {
+                                const { center, circle, centerName } = val;
+                                center.name = centerName;
+                                runtimeScope[centerName] = center;
+                                dependentPoints.push(center);
+                                globalPoints[centerName] = { x: center.x, y: center.y };
+
+                                if (outs.length === 1) {
+                                    runtimeScope[outs[0]] = circle;
+                                } else if (outs.length === 2) {
+                                    if (outs[0] !== centerName) {
+                                        throw new Error(`Khi gán 2 biến, dùng dạng ${centerName}, <đường tròn> = ${stmt.expression.name}(${centerName}, ...)`);
+                                    }
+                                    runtimeScope[outs[0]] = center;
+                                    runtimeScope[outs[1]] = circle;
+                                } else {
+                                    throw new Error(`${stmt.expression.name}() trả về tâm và đường tròn, cần 1 hoặc 2 biến ở vế trái`);
+                                }
+                            } else if (val && val.type === 'TangentResult') {
+                                if (val.mode === 'on') {
+                                    if (outs.length !== 1) {
+                                        throw new Error('Khi điểm nằm trên đường tròn, dùng t = tangents(P, c)');
+                                    }
+                                    runtimeScope[outs[0]] = val.line;
+                                } else if (outs.length === 4) {
+                                    assignConstructedPoint(outs[0], val.points[0]);
+                                    assignConstructedPoint(outs[1], val.points[1]);
+                                    runtimeScope[outs[2]] = val.lines[0];
+                                    runtimeScope[outs[3]] = val.lines[1];
+                                } else if (outs.length === 2) {
+                                    runtimeScope[outs[0]] = val.lines[0];
+                                    runtimeScope[outs[1]] = val.lines[1];
+                                } else {
+                                    throw new Error('Khi điểm nằm ngoài đường tròn, dùng I, J, t1, t2 = tangents(P, c) hoặc t1, t2 = tangents(P, c)');
+                                }
+                            } else if (val && val.type === 'GeometrySet') {
+                                if (outs.length === 1) {
+                                    runtimeScope[outs[0]] = val;
+                                } else if (outs.length !== val.items.length) {
+                                    throw new Error(`Biểu thức trả về ${val.items.length} đối tượng, nhưng vế trái có ${outs.length} biến`);
+                                } else {
+                                    val.items.forEach((item, idx) => {
+                                        runtimeScope[outs[idx]] = item;
+                                    });
+                                }
+                            } else if (outs.length === 1) {
+                                const name = outs[0];
+                                if (val && val.type === 'Point') {
+                                    val.name = name;
+                                    val.isFree = !!val.isFree;
+                                    val.isDraggable = !!val.isDraggable;
+                                    runtimeScope[name] = val;
+                                    if (val.isFree) {
+                                        freePoints.push(val);
+                                    } else {
+                                        dependentPoints.push(val);
+                                    }
+                                    globalPoints[name] = { x: val.x, y: val.y }; // Lưu kết quả tọa độ tính toán
+                                } else {
+                                    runtimeScope[name] = val;
+                                }
+                            } else {
+                                throw new Error('Vế phải không trả về đủ đối tượng để gán nhiều biến');
+                            }
+                        }
+                    } else if (stmt.type === 'Statement') {
+                        currentAssignmentName = null;
+                        const val = evalExpr(stmt.expression);
+                        if (val?.type === 'RenderSelection') {
+                            renderSelection = val.items;
+                        }
+                    }
+                } catch (e) {
+                    currentAssignmentName = null;
+                    throw new Error(`Dòng ${stmt.lineNum}: ${e.message}`);
+                }
+            }
+
+            if (!renderSelection) {
+                return { renderElements, freePoints, dependentPoints };
+            }
+
+            const allowedItems = new Set(renderSelection);
+            const isRenderAllowed = (item) => {
+                if (allowedItems.has(item)) return true;
+                if (item?.type === 'RightAngle') {
+                    return allowedItems.has(item.h) || allowedItems.has(item.a) || allowedItems.has(item.b);
+                }
+                return false;
+            };
+            return {
+                renderElements: renderElements.filter(isRenderAllowed),
+                freePoints: freePoints.filter(point => allowedItems.has(point)),
+                dependentPoints: dependentPoints.filter(point => allowedItems.has(point))
+            };
+        }
+
+        function getInfiniteDrawPoints(p1, p2, isRay = false) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len === 0) {
+                return { start: p1, end: p1 };
+            }
+            const ux = dx / len;
+            const uy = dy / len;
+            const extend = Math.max(1500, BASE_VIEW_SIZE / Math.max(currentZoom, 0.2));
+            return isRay
+                ? {
+                    start: p1,
+                    end: { x: p1.x + ux * extend, y: p1.y + uy * extend }
+                }
+                : {
+                    start: { x: p1.x - ux * extend, y: p1.y - uy * extend },
+                    end: { x: p1.x + ux * extend, y: p1.y + uy * extend }
+                };
+        }
+
+        // ----------------- RENDER ENGINE (SVG) -----------------
+
+        function renderGeometry(data) {
+            const linesG = document.getElementById('draw-lines');
+            const symbolsG = document.getElementById('draw-symbols');
+            const circlesG = document.getElementById('draw-circles');
+            const labelsG = document.getElementById('draw-labels');
+            const pointsG = document.getElementById('draw-points');
+            const pointMarkers = [];
+
+            // Xóa hết các nét vẽ cũ
+            linesG.innerHTML = '';
+            symbolsG.innerHTML = '';
+            circlesG.innerHTML = '';
+            labelsG.innerHTML = '';
+            pointsG.innerHTML = '';
+
+            // 1. Vẽ các yếu tố đường/vòng tròn
+            data.renderElements.forEach(el => {
+                if (el.type === 'Line' || el.type === 'Ray') {
+                    const drawPts = getInfiniteDrawPoints(el.p1, el.p2, el.type === 'Ray');
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', drawPts.start.x);
+                    line.setAttribute('y1', drawPts.start.y);
+                    line.setAttribute('x2', drawPts.end.x);
+                    line.setAttribute('y2', drawPts.end.y);
+                    line.setAttribute('stroke', el.type === 'Ray' ? '#94e2d5' : '#74c7ec');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('stroke-linecap', 'round');
+                    line.setAttribute('stroke-dasharray', el.type === 'Line' ? '10 6' : '');
+                    linesG.appendChild(line);
+                }
+                else if (el.type === 'Segment') {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', el.p1.x);
+                    line.setAttribute('y1', el.p1.y);
+                    line.setAttribute('x2', el.p2.x);
+                    line.setAttribute('y2', el.p2.y);
+                    line.setAttribute('stroke', '#a6adc8');
+                    line.setAttribute('stroke-width', '2.5');
+                    line.setAttribute('stroke-linecap', 'round');
+                    linesG.appendChild(line);
+                } 
+                else if (el.type === 'Circle') {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', el.center.x);
+                    circle.setAttribute('cy', el.center.y);
+                    circle.setAttribute('r', el.radius);
+                    const strokeColor = el.role === 'incircle'
+                        ? '#a6e3a1'
+                        : el.role === 'circumcircle'
+                            ? '#f9e2af'
+                            : el.role === 'excircle'
+                                ? '#f38ba8'
+                                : '#f9e2af';
+                    circle.setAttribute('stroke', strokeColor);
+                    circle.setAttribute('stroke-width', '2');
+                    circle.setAttribute('fill', 'rgba(249, 226, 175, 0.05)');
+                    circlesG.appendChild(circle);
+                }
+                else if (el.type === 'EqualSegments') {
+                    el.segments.forEach((seg, segIndex) => {
+                        const dx = seg.p2.x - seg.p1.x;
+                        const dy = seg.p2.y - seg.p1.y;
+                        const len = Math.hypot(dx, dy);
+                        if (len === 0) return;
+                        const ux = dx / len;
+                        const uy = dy / len;
+                        const perpX = -uy;
+                        const perpY = ux;
+                        const tickHalf = 5;
+                        const gap = 6;
+                        const total = Math.max(1, el.count || 1);
+                        for (let markIdx = 0; markIdx < total; markIdx++) {
+                            const offsetAlong = (markIdx - (total - 1) / 2) * gap;
+                            const cx = (seg.p1.x + seg.p2.x) / 2 + ux * offsetAlong;
+                            const cy = (seg.p1.y + seg.p2.y) / 2 + uy * offsetAlong;
+                            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            tick.setAttribute('x1', cx - perpX * tickHalf);
+                            tick.setAttribute('y1', cy - perpY * tickHalf);
+                            tick.setAttribute('x2', cx + perpX * tickHalf);
+                            tick.setAttribute('y2', cy + perpY * tickHalf);
+                            tick.setAttribute('stroke', segIndex === 0 ? '#f9e2af' : '#fab387');
+                            tick.setAttribute('stroke-width', '1.8');
+                            tick.setAttribute('stroke-linecap', 'round');
+                            symbolsG.appendChild(tick);
+                        }
+                    });
+                }
+                else if (el.type === 'RightAngle') {
+                    // Vẽ ô vuông góc nhỏ tại đỉnh hình chiếu H
+                    const size = 12;
+                    const h = el.h;
+                    const a = el.a;
+                    const b = el.b;
+
+                    // Tính toán vectơ hướng từ H đến A và H đến B
+                    const dxa = a.x - h.x, dya = a.y - h.y;
+                    const dxb = b.x - h.x, dyb = b.y - h.y;
+                    const lena = Math.sqrt(dxa*dxa + dya*dya);
+                    const lenb = Math.sqrt(dxb*dxb + dyb*dyb);
+
+                    if (lena > 0 && lenb > 0) {
+                        const uax = dxa / lena, uay = dya / lena;
+                        const ubx = dxb / lenb, uby = dyb / lenb;
+
+                        const p1x = h.x + uax * size, p1y = h.y + uay * size;
+                        const p2x = h.x + ubx * size, p2y = h.y + uby * size;
+                        const p3x = h.x + (uax + ubx) * size, p3y = h.y + (uay + uby) * size;
+
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        path.setAttribute('d', `M ${p1x} ${p1y} L ${p3x} ${p3y} L ${p2x} ${p2y}`);
+                        path.setAttribute('fill', 'none');
+                        path.setAttribute('stroke', '#f38ba8');
+                        path.setAttribute('stroke-width', '1.5');
+                        symbolsG.appendChild(path);
+                    }
+                }
+                else if (el.type === 'PointMarker') {
+                    if (el.markerRole === 'tangent') {
+                        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        ring.setAttribute('cx', el.point.x);
+                        ring.setAttribute('cy', el.point.y);
+                        ring.setAttribute('r', '8');
+                        ring.setAttribute('fill', 'none');
+                        ring.setAttribute('stroke', '#a6e3a1');
+                        ring.setAttribute('stroke-width', '1.5');
+                        symbolsG.appendChild(ring);
+                    } else if (el.markerRole === 'midpoint') {
+                        const { p1, p2, count = 1 } = el.point.markerData || {};
+                        if (p1 && p2) {
+                            const dx = p2.x - p1.x;
+                            const dy = p2.y - p1.y;
+                            const len = Math.hypot(dx, dy);
+                            if (len > 0) {
+                                const ux = dx / len;
+                                const uy = dy / len;
+                                const perpX = -uy;
+                                const perpY = ux;
+                                const tickHalf = 5;
+                                const offset = 9;
+                                for (let markIdx = 0; markIdx < Math.max(1, count); markIdx++) {
+                                    const shift = (markIdx - (Math.max(1, count) - 1) / 2) * 6;
+                                    [-offset, offset].forEach(delta => {
+                                        const cx = el.point.x + ux * delta + perpX * shift;
+                                        const cy = el.point.y + uy * delta + perpY * shift;
+                                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                                        tick.setAttribute('x1', cx - perpX * tickHalf);
+                                        tick.setAttribute('y1', cy - perpY * tickHalf);
+                                        tick.setAttribute('x2', cx + perpX * tickHalf);
+                                        tick.setAttribute('y2', cy + perpY * tickHalf);
+                                        tick.setAttribute('stroke', '#f9e2af');
+                                        tick.setAttribute('stroke-width', '1.8');
+                                        tick.setAttribute('stroke-linecap', 'round');
+                                        symbolsG.appendChild(tick);
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Vẽ tất cả các Điểm tròn
+            const allPoints = [...data.freePoints, ...data.dependentPoints];
+            pointInteractionMap = {};
+            allPoints.forEach(pt => {
+                const isFree = pt.isFree;
+                const isDraggable = !!pt.isDraggable;
+                pointInteractionMap[pt.name] = {
+                    isDraggable,
+                    dragConstraint: pt.dragConstraint || null
+                };
+                if (pt.specialRole === 'midpoint') {
+                    pointMarkers.push({ type: 'PointMarker', point: pt, markerRole: pt.specialRole });
+                }
+                
+                // Vòng ngoài phát quang nhẹ (chỉ điểm tự do mới có)
+                if (isDraggable) {
+                    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    glow.setAttribute('cx', pt.x);
+                    glow.setAttribute('cy', pt.y);
+                    glow.setAttribute('r', '11');
+                    glow.setAttribute('fill', isFree
+                        ? 'rgba(137, 180, 250, 0.15)'
+                        : pt.specialRole === 'inside'
+                            ? 'rgba(203, 166, 247, 0.15)'
+                            : pt.specialRole === 'outside'
+                                ? 'rgba(249, 226, 175, 0.15)'
+                                : 'rgba(148, 226, 213, 0.15)');
+                    pointsG.appendChild(glow);
+                }
+
+                // Chấm điểm tròn lõi
+                const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                dot.setAttribute('cx', pt.x);
+                dot.setAttribute('cy', pt.y);
+                dot.setAttribute('r', isDraggable ? '5.5' : '4.5');
+                const pointFill = pt.specialRole === 'intersection'
+                    ? '#f38ba8'
+                    : pt.specialRole === 'tangent'
+                        ? '#a6e3a1'
+                        : pt.specialRole === 'inside'
+                            ? '#cba6f7'
+                            : pt.specialRole === 'outside'
+                                ? '#f9e2af'
+                        : isDraggable && !isFree
+                            ? '#94e2d5'
+                        : isFree
+                            ? '#89b4fa'
+                            : '#fab387';
+                dot.setAttribute('fill', pointFill);
+                dot.setAttribute('stroke', '#11111b');
+                dot.setAttribute('stroke-width', '1.5');
+                
+                if (isDraggable) {
+                    dot.setAttribute('class', 'free-point');
+                    dot.addEventListener('mousedown', (e) => handleMouseDown(e, pt.name));
+                }
+                pointsG.appendChild(dot);
+
+                const labelColor = pt.specialRole === 'intersection'
+                    ? '#f38ba8'
+                    : pt.specialRole === 'tangent'
+                        ? '#a6e3a1'
+                        : pt.specialRole === 'inside'
+                            ? '#cba6f7'
+                            : pt.specialRole === 'outside'
+                                ? '#f9e2af'
+                        : isDraggable && !isFree
+                            ? '#94e2d5'
+                        : isFree
+                            ? '#89b4fa'
+                            : '#fab387';
+
+                const labelPos = getLabelPosition(pt);
+                const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                labelGroup.setAttribute('data-point', pt.name);
+
+                const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                hit.setAttribute('class', 'point-label-hit');
+                hit.setAttribute('cx', labelPos.x + 4);
+                hit.setAttribute('cy', labelPos.y - 6);
+                hit.setAttribute('r', '12');
+                hit.setAttribute('fill', 'transparent');
+                hit.addEventListener('mousedown', (e) => handleLabelMouseDown(e, pt.name));
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('class', 'point-label-text');
+                text.setAttribute('x', labelPos.x);
+                text.setAttribute('y', labelPos.y);
+                text.setAttribute('fill', labelColor);
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('font-size', '14px');
+                text.setAttribute('font-family', 'monospace');
+                text.textContent = pt.name;
+
+                labelGroup.appendChild(hit);
+                labelGroup.appendChild(text);
+                labelsG.appendChild(labelGroup);
+            });
+
+            lastRenderedPoints = allPoints.map(pt => ({ name: pt.name, x: pt.x, y: pt.y }));
+
+            pointMarkers.forEach(el => {
+                if (el.markerRole === 'tangent') {
+                    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    ring.setAttribute('cx', el.point.x);
+                    ring.setAttribute('cy', el.point.y);
+                    ring.setAttribute('r', '8');
+                    ring.setAttribute('fill', 'none');
+                    ring.setAttribute('stroke', '#a6e3a1');
+                    ring.setAttribute('stroke-width', '1.5');
+                    symbolsG.appendChild(ring);
+                } else if (el.markerRole === 'midpoint') {
+                    const { p1, p2, count = 1 } = el.point.markerData || {};
+                    if (p1 && p2) {
+                        const dx = p2.x - p1.x;
+                        const dy = p2.y - p1.y;
+                        const len = Math.hypot(dx, dy);
+                        if (len > 0) {
+                            const ux = dx / len;
+                            const uy = dy / len;
+                            const perpX = -uy;
+                            const perpY = ux;
+                            const tickHalf = 5;
+                            const offset = 9;
+                            for (let markIdx = 0; markIdx < Math.max(1, count); markIdx++) {
+                                const shift = (markIdx - (Math.max(1, count) - 1) / 2) * 6;
+                                [-offset, offset].forEach(delta => {
+                                    const cx = el.point.x + ux * delta + perpX * shift;
+                                    const cy = el.point.y + uy * delta + perpY * shift;
+                                    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                                    tick.setAttribute('x1', cx - perpX * tickHalf);
+                                    tick.setAttribute('y1', cy - perpY * tickHalf);
+                                    tick.setAttribute('x2', cx + perpX * tickHalf);
+                                    tick.setAttribute('y2', cy + perpY * tickHalf);
+                                    tick.setAttribute('stroke', '#f9e2af');
+                                    tick.setAttribute('stroke-width', '1.8');
+                                    tick.setAttribute('stroke-linecap', 'round');
+                                    symbolsG.appendChild(tick);
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ----------------- INTERACTIVE LOGIC (DRAG & DROP) -----------------
+
+        function getDefaultLabelOffset() {
+            const { dx, dy } = LABEL_DEFAULT_DIRECTION;
+            const dist = Math.hypot(dx, dy);
+            if (dist === 0) {
+                return { dx: LABEL_DRAG_MAX_RADIUS, dy: 0 };
+            }
+            const scale = LABEL_DRAG_MAX_RADIUS / dist;
+            return { dx: dx * scale, dy: dy * scale };
+        }
+
+        function getLabelOffset(pointName) {
+            return labelOffsets[pointName] || getDefaultLabelOffset();
+        }
+
+        function constrainLabelOffset(dx, dy) {
+            const dist = Math.hypot(dx, dy);
+            if (dist <= LABEL_DRAG_MAX_RADIUS || dist === 0) {
+                return { dx, dy };
+            }
+            const scale = LABEL_DRAG_MAX_RADIUS / dist;
+            return { dx: dx * scale, dy: dy * scale };
+        }
+
+        function getLabelPosition(pt) {
+            const off = getLabelOffset(pt.name);
+            return {
+                x: pt.x + off.dx,
+                y: pt.y + off.dy
+            };
+        }
+
+        function refreshPointLabels() {
+            lastRenderedPoints.forEach(pt => {
+                const group = document.querySelector(`#draw-labels g[data-point="${pt.name}"]`);
+                if (!group) return;
+                const pos = getLabelPosition(pt);
+                const hit = group.querySelector('.point-label-hit');
+                const text = group.querySelector('.point-label-text');
+                if (hit) {
+                    hit.setAttribute('cx', pos.x + 4);
+                    hit.setAttribute('cy', pos.y - 6);
+                }
+                if (text) {
+                    text.setAttribute('x', pos.x);
+                    text.setAttribute('y', pos.y);
+                }
+            });
+        }
+
+        function handleLabelMouseDown(evt, pointName) {
+            evt.preventDefault();
+            evt.stopPropagation();
+            isDraggingLabel = true;
+            activeDragLabel = pointName;
+        }
+
+        function handleMouseDown(evt, pointName) {
+            evt.preventDefault();
+            isDragging = true;
+            activeDragPoint = pointName;
+        }
+
+        function getViewBox() {
+            const viewSize = BASE_VIEW_SIZE / currentZoom;
+            return {
+                x: VIEW_CENTER_X - viewSize / 2,
+                y: VIEW_CENTER_Y - viewSize / 2,
+                width: viewSize,
+                height: viewSize
+            };
+        }
+
+        function clientToSvgPoint(evt) {
+            const svg = document.getElementById('canvas');
+            const pt = svg.createSVGPoint();
+            pt.x = evt.clientX;
+            pt.y = evt.clientY;
+            const ctm = svg.getScreenCTM();
+            if (!ctm) {
+                return { x: 0, y: 0 };
+            }
+            const svgPt = pt.matrixTransform(ctm.inverse());
+            return { x: Math.round(svgPt.x), y: Math.round(svgPt.y) };
+        }
+
+        function clampZoom(value) {
+            return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+        }
+
+        function updateZoomDisplay() {
+            const svg = document.getElementById('canvas');
+            const viewBox = getViewBox();
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+            document.getElementById('zoom-level').textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+
+        function setZoom(nextZoom) {
+            currentZoom = clampZoom(nextZoom);
+            updateZoomDisplay();
+        }
+
+        function zoomIn() {
+            setZoom(currentZoom + ZOOM_STEP);
+        }
+
+        function zoomOut() {
+            setZoom(currentZoom - ZOOM_STEP);
+        }
+
+        function resetZoom() {
+            setZoom(1);
+        }
+
+        function handleZoomWheel(evt) {
+            evt.preventDefault();
+            if (evt.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        }
+
+        async function ensureSyntaxDocsLoaded() {
+            if (syntaxDocsData) return syntaxDocsData;
+
+            const status = document.getElementById('syntax-docs-status');
+            status.classList.remove('hidden');
+            status.textContent = getSyntaxDocsUiText('loading');
+
+            try {
+                const response = await fetch('./syntax-docs.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                syntaxDocsData = await response.json();
+                syntaxDocsLanguage = syntaxDocsData.defaultLanguage || 'vi';
+                applySyntaxDocsUiText();
+                status.classList.add('hidden');
+                return syntaxDocsData;
+            } catch (error) {
+                syntaxDocsData = { categories: [] };
+                status.classList.remove('hidden');
+                status.textContent = getSyntaxDocsUiText('loadError');
+                return syntaxDocsData;
+            }
+        }
+
+        function getSyntaxDocsUiText(key) {
+            const fallback = {
+                vi: {
+                    openButton: 'Mở tra cứu',
+                    panelTitle: '📖 Tài liệu cú pháp',
+                    panelDescription: 'Tra cứu theo category, tìm kiếm nhanh và xem ví dụ trong popup.',
+                    modalTitle: 'Tra cứu cú pháp',
+                    modalDescription: 'Tài liệu được nạp từ file JSON riêng và có thể tìm kiếm theo nhóm.',
+                    closeButton: 'Đóng',
+                    searchPlaceholder: 'Tìm theo cú pháp hoặc mô tả...',
+                    allCategory: 'Tất cả',
+                    loading: 'Đang tải tài liệu cú pháp...',
+                    loadError: 'Không tải được file syntax-docs.json. Hãy mở trang từ workspace hiện tại để dùng tra cứu.',
+                    emptyResult: 'Không có mục nào khớp với từ khóa hoặc category đang chọn.',
+                    itemCount: 'mục',
+                    languageVi: 'Tiếng Việt',
+                    languageEn: 'English'
+                },
+                en: {
+                    openButton: 'Open reference',
+                    panelTitle: '📖 Syntax reference',
+                    panelDescription: 'Browse by category, search quickly, and inspect examples in the popup.',
+                    modalTitle: 'Syntax reference',
+                    modalDescription: 'Reference content is loaded from a separate JSON file and can be searched by group.',
+                    closeButton: 'Close',
+                    searchPlaceholder: 'Search by syntax or description...',
+                    allCategory: 'All',
+                    loading: 'Loading syntax reference...',
+                    loadError: 'Could not load syntax-docs.json. Open the page from this workspace to use the reference.',
+                    emptyResult: 'No entries match the current keyword or category.',
+                    itemCount: 'items',
+                    languageVi: 'Vietnamese',
+                    languageEn: 'English'
+                }
+            };
+            return syntaxDocsData?.ui?.[syntaxDocsLanguage]?.[key]
+                || fallback[syntaxDocsLanguage]?.[key]
+                || fallback.vi[key]
+                || '';
+        }
+
+        function applySyntaxDocsUiText() {
+            document.getElementById('syntax-docs-panel-title').textContent = getSyntaxDocsUiText('panelTitle');
+            document.getElementById('syntax-docs-panel-description').textContent = getSyntaxDocsUiText('panelDescription');
+            document.getElementById('syntax-docs-open-button').textContent = getSyntaxDocsUiText('openButton');
+            document.getElementById('syntax-docs-modal-title').textContent = getSyntaxDocsUiText('modalTitle');
+            document.getElementById('syntax-docs-modal-description').textContent = getSyntaxDocsUiText('modalDescription');
+            document.getElementById('syntax-docs-close-button').textContent = getSyntaxDocsUiText('closeButton');
+            document.getElementById('syntax-docs-search').placeholder = getSyntaxDocsUiText('searchPlaceholder');
+            renderSyntaxDocsLanguageSwitch();
+        }
+
+        function renderSyntaxDocsLanguageSwitch() {
+            const mount = document.getElementById('syntax-docs-language-switch');
+            if (!mount) return;
+            const languages = [
+                { id: 'vi', label: getSyntaxDocsUiText('languageVi') },
+                { id: 'en', label: getSyntaxDocsUiText('languageEn') }
+            ];
+            mount.innerHTML = languages.map(language => {
+                const active = language.id === syntaxDocsLanguage;
+                return `<button onclick="setSyntaxDocsLanguage('${language.id}')" class="text-xs px-2.5 py-1.5 rounded border transition ${active ? 'bg-[#f9e2af] text-[#11111b] border-[#f9e2af]' : 'bg-[#181825] text-[#cdd6f4] border-[#313244] hover:bg-[#313244]'}">${language.label}</button>`;
+            }).join('');
+        }
+
+        function setSyntaxDocsLanguage(language) {
+            syntaxDocsLanguage = language;
+            applySyntaxDocsUiText();
+            renderSyntaxDocsCategories();
+            renderSyntaxDocsResults();
+        }
+
+        function getFilteredSyntaxDocs() {
+            if (!syntaxDocsData) return [];
+            const normalizedSearch = syntaxDocsSearchTerm.trim().toLowerCase();
+            return syntaxDocsData.categories
+                .filter(category => syntaxDocsActiveCategory === 'all' || category.id === syntaxDocsActiveCategory)
+                .map(category => ({
+                    ...category,
+                    items: category.items.filter(item => {
+                        if (!normalizedSearch) return true;
+                        const localizedDescription = item.description?.[syntaxDocsLanguage] || item.description?.vi || item.description?.en || '';
+                        const localizedLabel = category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || '';
+                        const haystack = `${item.syntax} ${localizedDescription} ${localizedLabel}`.toLowerCase();
+                        return haystack.includes(normalizedSearch);
+                    })
+                }))
+                .filter(category => category.items.length > 0);
+        }
+
+        function renderSyntaxDocsCategories() {
+            const categoriesEl = document.getElementById('syntax-docs-categories');
+            if (!syntaxDocsData) {
+                categoriesEl.innerHTML = '';
+                return;
+            }
+
+            const categories = [
+                { id: 'all', label: getSyntaxDocsUiText('allCategory') },
+                ...syntaxDocsData.categories.map(category => ({
+                    id: category.id,
+                    label: category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || category.id
+                }))
+            ];
+
+            categoriesEl.innerHTML = categories.map(category => {
+                const active = category.id === syntaxDocsActiveCategory;
+                return `<button onclick="setSyntaxDocsCategory('${category.id}')" class="text-xs px-3 py-1.5 rounded-full border transition ${active ? 'bg-[#89b4fa] text-[#11111b] border-[#89b4fa]' : 'bg-[#181825] text-[#cdd6f4] border-[#313244] hover:bg-[#313244]'}">${category.label}</button>`;
+            }).join('');
+        }
+
+        function renderSyntaxDocsResults() {
+            const resultsEl = document.getElementById('syntax-docs-results');
+            const status = document.getElementById('syntax-docs-status');
+            const filtered = getFilteredSyntaxDocs();
+
+            if (!syntaxDocsData || syntaxDocsData.categories.length === 0) {
+                resultsEl.innerHTML = '';
+                return;
+            }
+
+            if (filtered.length === 0) {
+                status.classList.remove('hidden');
+                status.textContent = getSyntaxDocsUiText('emptyResult');
+                resultsEl.innerHTML = '';
+                return;
+            }
+
+            if (status.textContent !== getSyntaxDocsUiText('loadError')) {
+                status.classList.add('hidden');
+            }
+
+            resultsEl.innerHTML = filtered.map(category => `
+                <section class="space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-sm font-bold text-[#f9e2af]">${category.label?.[syntaxDocsLanguage] || category.label?.vi || category.label?.en || category.id}</h3>
+                        <span class="text-[11px] text-[#a6adc8]">${category.items.length} ${getSyntaxDocsUiText('itemCount')}</span>
+                    </div>
+                    <div class="space-y-2">
+                        ${category.items.map(item => `
+                            <article class="bg-[#11111b] border border-[#313244] rounded-xl p-3">
+                                <div class="text-sm font-mono text-[#a6e3a1] break-words">${item.syntax}</div>
+                                <p class="text-xs text-[#bac2de] mt-2 leading-relaxed">${item.description?.[syntaxDocsLanguage] || item.description?.vi || item.description?.en || ''}</p>
+                            </article>
+                        `).join('')}
+                    </div>
+                </section>
+            `).join('');
+        }
+
+        function setSyntaxDocsCategory(categoryId) {
+            syntaxDocsActiveCategory = categoryId;
+            renderSyntaxDocsCategories();
+            renderSyntaxDocsResults();
+        }
+
+        function handleSyntaxDocsSearch(event) {
+            syntaxDocsSearchTerm = event.target.value || '';
+            renderSyntaxDocsResults();
+        }
+
+        async function openSyntaxDocsModal() {
+            document.getElementById('syntax-docs-modal').classList.remove('hidden');
+            document.getElementById('syntax-docs-search').value = syntaxDocsSearchTerm;
+            await ensureSyntaxDocsLoaded();
+            applySyntaxDocsUiText();
+            renderSyntaxDocsCategories();
+            renderSyntaxDocsResults();
+        }
+
+        function closeSyntaxDocsModal() {
+            document.getElementById('syntax-docs-modal').classList.add('hidden');
+        }
+
+        function handleMouseMove(evt) {
+            const { x, y } = clientToSvgPoint(evt);
+
+            // Hiển thị tọa độ góc màn hình
+            document.getElementById('coords-tooltip').textContent = `Tọa độ: (${x}, ${y})`;
+
+            if (isDraggingLabel && activeDragLabel) {
+                const pt = lastRenderedPoints.find(p => p.name === activeDragLabel);
+                if (pt) {
+                    const constrained = constrainLabelOffset(x - pt.x, y - pt.y);
+                    labelOffsets[activeDragLabel] = constrained;
+                    refreshPointLabels();
+                }
+                return;
+            }
+
+            if (isDragging && activeDragPoint) {
+                globalPoints[activeDragPoint] = { x, y };
+                reEvaluate();
+            }
+        }
+
+        function handleMouseUp() {
+            isDraggingLabel = false;
+            activeDragLabel = null;
+            isDragging = false;
+            activeDragPoint = null;
+        }
+
+        // Chạy lại Solver và vẽ lại toàn bộ khi di chuột kéo thả điểm tự do
+        function reEvaluate() {
+            try {
+                const data = evaluateAST(currentAST);
+                renderGeometry(data);
+                hideError();
+            } catch (e) {
+                showError(e.message);
+            }
+        }
+
+        // ----------------- COMPILER EXECUTION -----------------
+
+        function runCode() {
+            const code = document.getElementById('editor').value;
+            try {
+                currentAST = parseDSL(code);
+                const data = evaluateAST(currentAST);
+                renderGeometry(data);
+                updateZoomDisplay();
+                hideError();
+            } catch (e) {
+                showError(e.message);
+            }
+        }
+
+        function showError(msg) {
+            const log = document.getElementById('error-log');
+            log.textContent = `⚠️ Lỗi dịch: ${msg}`;
+            log.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('error-log').classList.add('hidden');
+        }
+
+        // Chuyển đổi qua lại các preset mẫu đề bài
+        function loadPreset(key) {
+            document.getElementById('editor').value = presets[key];
+            // Reset tọa độ điểm về ban đầu khi đổi bài tránh chồng lấn
+            if (key === 'preset1') {
+                globalPoints = {
+                    A: { x: 250, y: 120 },
+                    B: { x: 120, y: 380 },
+                    C: { x: 380, y: 380 }
+                };
+            } else if (key === 'preset2') {
+                globalPoints = {
+                    O: { x: 250, y: 250 },
+                    A: { x: 380, y: 250 },
+                    B: { x: 250, y: 140 }
+                };
+            }
+            runCode();
+        }
+
+        // Khởi động mặc định lần đầu tải trang
+        window.onload = () => {
+            applySyntaxDocsUiText();
+            updateZoomDisplay();
+            loadPreset('preset1');
+        };
+    </script>
+</body>
+</html>

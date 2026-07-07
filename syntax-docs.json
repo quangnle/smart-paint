@@ -1,0 +1,381 @@
+{
+  "defaultLanguage": "vi",
+  "ui": {
+    "vi": {
+      "openButton": "Mở tra cứu",
+      "panelTitle": "📖 Tài liệu cú pháp",
+      "panelDescription": "Tra cứu theo category, tìm kiếm nhanh và xem ví dụ trong popup.",
+      "modalTitle": "Tra cứu cú pháp",
+      "modalDescription": "Tài liệu được nạp từ file JSON riêng và có thể tìm kiếm theo nhóm.",
+      "closeButton": "Đóng",
+      "searchPlaceholder": "Tìm theo cú pháp hoặc mô tả...",
+      "allCategory": "Tất cả",
+      "loading": "Đang tải tài liệu cú pháp...",
+      "loadError": "Không tải được file syntax-docs.json. Hãy mở trang từ workspace hiện tại để dùng tra cứu.",
+      "emptyResult": "Không có mục nào khớp với từ khóa hoặc category đang chọn.",
+      "itemCount": "mục",
+      "languageVi": "Tiếng Việt",
+      "languageEn": "English"
+    },
+    "en": {
+      "openButton": "Open reference",
+      "panelTitle": "📖 Syntax reference",
+      "panelDescription": "Browse by category, search quickly, and inspect examples in the popup.",
+      "modalTitle": "Syntax reference",
+      "modalDescription": "Reference content is loaded from a separate JSON file and can be searched by group.",
+      "closeButton": "Close",
+      "searchPlaceholder": "Search by syntax or description...",
+      "allCategory": "All",
+      "loading": "Loading syntax reference...",
+      "loadError": "Could not load syntax-docs.json. Open the page from this workspace to use the reference.",
+      "emptyResult": "No entries match the current keyword or category.",
+      "itemCount": "items",
+      "languageVi": "Vietnamese",
+      "languageEn": "English"
+    }
+  },
+  "categories": [
+    {
+      "id": "co-ban",
+      "label": {
+        "vi": "Điểm, đường thẳng, tia, đoạn thẳng",
+        "en": "Points, lines, rays, segments"
+      },
+      "items": [
+        {
+          "syntax": "A, B, C = points(free)",
+          "description": {
+            "vi": "Tạo các điểm kéo thả tự do.",
+            "en": "Create free draggable points."
+          }
+        },
+        {
+          "syntax": "d = line(segment(A, B))",
+          "description": {
+            "vi": "Đường thẳng chứa đoạn AB.",
+            "en": "The infinite line containing segment AB."
+          }
+        },
+        {
+          "syntax": "r = ray(A, B)",
+          "description": {
+            "vi": "Tia gốc A đi qua B.",
+            "en": "A ray starting at A and passing through B."
+          }
+        },
+        {
+          "syntax": "d = parallel(C, segment(A, B))",
+          "description": {
+            "vi": "Đường thẳng qua C song song với đoạn AB (cũng dùng được line(...) hoặc ray(...)).",
+            "en": "Line through C parallel to segment AB (also accepts line(...) or ray(...))."
+          }
+        },
+        {
+          "syntax": "ls1 = segment(A, B)",
+          "description": {
+            "vi": "Đoạn thẳng AB.",
+            "en": "Segment AB."
+          }
+        },
+        {
+          "syntax": "M = midpoint(B, C)",
+          "description": {
+            "vi": "Trung điểm của đoạn BC, tự nhận nhóm vạch riêng.",
+            "en": "Midpoint of segment BC, automatically assigned its own tick-mark group."
+          }
+        },
+        {
+          "syntax": "N = midpoint(D, E, 2)",
+          "description": {
+            "vi": "Trung điểm với 2 vạch để phân biệt nhóm.",
+            "en": "Midpoint marked with 2 ticks to distinguish its group."
+          }
+        },
+        {
+          "syntax": "H = project(A, line(B, C))",
+          "description": {
+            "vi": "Hình chiếu vuông góc của A lên đường BC.",
+            "en": "Orthogonal projection of A onto line BC."
+          }
+        },
+        {
+          "syntax": "I = reflect(P, line(A, B))",
+          "description": {
+            "vi": "Điểm I đối xứng của P qua đường thẳng (cũng dùng được ray(...) hoặc segment(...)).",
+            "en": "Point I symmetric to P across a line (also accepts ray(...) or segment(...))."
+          }
+        },
+        {
+          "syntax": "M = on(ray(A, B))",
+          "description": {
+            "vi": "Đặt điểm trên tia, đường, đoạn hoặc đường tròn. Hàm on() tự nhận loại hình học.",
+            "en": "Place a point on a ray, line, segment, or circle. on() detects the geometry type automatically."
+          }
+        },
+        {
+          "syntax": "D = on(d)",
+          "description": {
+            "vi": "Điểm D trên đường d (kết quả line(...), parallel(...), ray(...), segment(...)).",
+            "en": "Point D on line d (from line(...), parallel(...), ray(...), or segment(...))."
+          }
+        },
+        {
+          "syntax": "K = on(line(A, B), segment(B, H) = segment(A, K))",
+          "description": {
+            "vi": "Điểm K trên đường thẳng AB với ràng buộc khoảng cách.",
+            "en": "Point K on line AB with a distance constraint."
+          }
+        },
+        {
+          "syntax": "N = on(segment(A, B))",
+          "description": {
+            "vi": "Điểm N kéo được nhưng luôn nằm trên đoạn AB.",
+            "en": "Point N is draggable but always remains on segment AB."
+          }
+        },
+        {
+          "syntax": "N = on(segment(A, B), 0.25)",
+          "description": {
+            "vi": "Đặt N tại 25% đoạn AB, sau đó vẫn kéo bám theo đoạn.",
+            "en": "Place N at 25% of segment AB, then keep it draggable on that segment."
+          }
+        },
+        {
+          "syntax": "G = on(ray(H, K), segment(H, K) = segment(H, G))",
+          "description": {
+            "vi": "Dựng G trên tia HK sao cho HG = HK, tự đánh dấu hai đoạn bằng nhau.",
+            "en": "Construct G on ray HK so that HG = HK, and automatically mark the two equal segments."
+          }
+        },
+        {
+          "syntax": "R = angle(A, B, 60)",
+          "description": {
+            "vi": "Tạo tia AR sao cho góc BAR bằng 60 độ.",
+            "en": "Create ray AR so that angle BAR equals 60 degrees."
+          }
+        },
+        {
+          "syntax": "R = angle(A, B, -60)",
+          "description": {
+            "vi": "Tạo tia AR theo chiều ngược lại sao cho góc BAR bằng -60 độ.",
+            "en": "Create ray AR in the opposite rotational direction so that angle BAR equals -60 degrees."
+          }
+        },
+        {
+          "syntax": "X = intersect(line(A, B), line(C, D))",
+          "description": {
+            "vi": "Giao điểm của 2 đường thẳng, tia hoặc đoạn hợp lệ.",
+            "en": "Intersection of two valid lines, rays, or segments."
+          }
+        },
+        {
+          "syntax": "equal(segment(A, K), segment(B, H))",
+          "description": {
+            "vi": "Đánh dấu 2 đoạn bằng nhau, tự nhận số vạch theo nhóm.",
+            "en": "Mark two equal segments and assign tick counts automatically by group."
+          }
+        },
+        {
+          "syntax": "equal(segment(M, N), segment(P, Q), 2)",
+          "description": {
+            "vi": "Đánh dấu 2 đoạn bằng nhau với 2 vạch cố định.",
+            "en": "Mark two equal segments with a fixed 2-tick style."
+          }
+        },
+        {
+          "syntax": "render(A, B, K, H, ar, ab, kh)",
+          "description": {
+            "vi": "Chỉ vẽ các điểm và đối tượng được liệt kê trong render(...).",
+            "en": "Only draw the points and geometry objects explicitly listed in render(...)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "da-giac",
+      "label": {
+        "vi": "Đa giác (poly)",
+        "en": "Polygons (poly)"
+      },
+      "items": [
+        {
+          "syntax": "tr = poly(A, B, C)",
+          "description": {
+            "vi": "Vẽ đa giác nối các đỉnh theo thứ tự và khép kín cạnh cuối.",
+            "en": "Draw a polygon by connecting vertices in order and closing the last edge."
+          }
+        },
+        {
+          "syntax": "A, B, C = points(free)\ntr = poly(A, B, C)",
+          "description": {
+            "vi": "Dựng tam giác tự do từ 3 điểm kéo thả.",
+            "en": "Construct a free triangle from three draggable points."
+          }
+        },
+        {
+          "syntax": "A, B = points(free)\nx = angle(A, B, 90)\nC = on(ray(A, x))\ntr = poly(A, B, C)",
+          "description": {
+            "vi": "Dựng tam giác vuông tại A bằng góc 90° và điểm trên tia.",
+            "en": "Construct a right triangle at A using a 90° angle and a point on the ray."
+          }
+        },
+        {
+          "syntax": "A, Z = points(free)\nH = on(ray(A, Z))\nB = angle(H, A, 90)\nC = angle(H, A, -90)\ntr = poly(A, B, C)",
+          "description": {
+            "vi": "Dựng tam giác cân tại A: hai cạnh AB và AC vuông góc với nhau qua đường cao AH.",
+            "en": "Construct an isosceles triangle at A: sides AB and AC are symmetric around altitude AH."
+          }
+        },
+        {
+          "syntax": "quad = poly(A, B, C, D)",
+          "description": {
+            "vi": "Dựng tứ giác tự do từ 4 điểm.",
+            "en": "Construct a free quadrilateral from four points."
+          }
+        },
+        {
+          "syntax": "P = inside(quad)",
+          "description": {
+            "vi": "Điểm P nằm trong đa giác, kéo được nhưng luôn ở bên trong.",
+            "en": "Point P stays inside the polygon and remains draggable within it."
+          }
+        },
+        {
+          "syntax": "Q = outside(quad)",
+          "description": {
+            "vi": "Điểm Q nằm ngoài đa giác, kéo được nhưng luôn ở bên ngoài.",
+            "en": "Point Q stays outside the polygon and remains draggable outside it."
+          }
+        },
+        {
+          "syntax": "b = bisector(B, A, C)",
+          "description": {
+            "vi": "Đường phân giác của góc BAC.",
+            "en": "Angle bisector of angle BAC."
+          }
+        },
+        {
+          "syntax": "bs = triangle_bisectors(A, B, C)",
+          "description": {
+            "vi": "Ba đường phân giác của tam giác ABC.",
+            "en": "All three angle bisectors of triangle ABC."
+          }
+        }
+      ]
+    },
+    {
+      "id": "hinh-tron",
+      "label": {
+        "vi": "Hình tròn",
+        "en": "Circles"
+      },
+      "items": [
+        {
+          "syntax": "c = circle(O, A)",
+          "description": {
+            "vi": "Đường tròn tâm O đi qua A.",
+            "en": "Circle centered at O and passing through A."
+          }
+        },
+        {
+          "syntax": "c = circle(O, 60)",
+          "description": {
+            "vi": "Đường tròn tâm O, bán kính 60.",
+            "en": "Circle centered at O with radius 60."
+          }
+        },
+        {
+          "syntax": "I = on(c)",
+          "description": {
+            "vi": "Điểm I nằm trên đường tròn c, tự dùng hướng cũ hoặc góc mặc định.",
+            "en": "Point I lies on circle c, reusing its previous direction or a default angle."
+          }
+        },
+        {
+          "syntax": "I = on(c, 45)",
+          "description": {
+            "vi": "Điểm I nằm trên đường tròn c tại góc 45°.",
+            "en": "Point I lies on circle c at angle 45°."
+          }
+        },
+        {
+          "syntax": "P = inside(c)",
+          "description": {
+            "vi": "Điểm P nằm trong đường tròn c, kéo được nhưng không ra ngoài.",
+            "en": "Point P stays inside circle c and remains draggable within it."
+          }
+        },
+        {
+          "syntax": "Q = outside(c)",
+          "description": {
+            "vi": "Điểm Q nằm ngoài đường tròn c, kéo được nhưng không vào trong.",
+            "en": "Point Q stays outside circle c and remains draggable outside it."
+          }
+        },
+        {
+          "syntax": "P, Q = intersect(c1, c2)",
+          "description": {
+            "vi": "Giao điểm của 2 đường tròn.",
+            "en": "Intersection points of two circles."
+          }
+        },
+        {
+          "syntax": "P, Q = intersect(line(A, B), c)",
+          "description": {
+            "vi": "Giao điểm của đường thẳng và đường tròn.",
+            "en": "Intersection points of a line and a circle."
+          }
+        },
+        {
+          "syntax": "I, tin = incircle(I, A, B, C)",
+          "description": {
+            "vi": "Đường tròn nội tiếp tam giác ABC; I là tâm (tên khai báo trong lệnh).",
+            "en": "Incircle of triangle ABC; I is the center name declared in the call."
+          }
+        },
+        {
+          "syntax": "O, tout = circum(O, A, B, C)",
+          "description": {
+            "vi": "Đường tròn ngoại tiếp tam giác ABC; O là tâm (tên khai báo trong lệnh).",
+            "en": "Circumcircle of triangle ABC; O is the center name declared in the call."
+          }
+        },
+        {
+          "syntax": "tb = excircle(A, B, C, A)",
+          "description": {
+            "vi": "Đường tròn bàng tiếp đối diện đỉnh A.",
+            "en": "Excircle opposite vertex A."
+          }
+        },
+        {
+          "syntax": "t = tangent(I, c)",
+          "description": {
+            "vi": "Tiếp tuyến của đường tròn c tại I.",
+            "en": "Tangent line to circle c at I."
+          }
+        },
+        {
+          "syntax": "t = tangents(P, c)",
+          "description": {
+            "vi": "Tiếp tuyến duy nhất khi P nằm trên đường tròn c.",
+            "en": "The single tangent line when P lies on circle c."
+          }
+        },
+        {
+          "syntax": "I, J, t1, t2 = tangents(P, c)",
+          "description": {
+            "vi": "Hai điểm tiếp xúc I, J và hai tiếp tuyến t1, t2 khi P nằm ngoài đường tròn c.",
+            "en": "Tangent points I, J and tangent lines t1, t2 when P is outside circle c."
+          }
+        },
+        {
+          "syntax": "t1, t2 = tangents(P, c)",
+          "description": {
+            "vi": "Chỉ lấy hai tiếp tuyến khi P nằm ngoài đường tròn (không gán tên điểm tiếp xúc).",
+            "en": "Only the two tangent lines when P is outside the circle (without named tangent points)."
+          }
+        }
+      ]
+    }
+  ]
+}
