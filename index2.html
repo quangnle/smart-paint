@@ -2881,6 +2881,7 @@ ${problemText}
 9. Free points: A, B = points(free). Dependent points via construction commands.
 10. When intersect() returns multiple points, names already defined on the left are matched to the corresponding intersection by position; remaining names get the other intersections in geometric order. Example: A, E = intersect(line(A, H), circumcircle) keeps A at the existing vertex and assigns E to the other intersection.
 11. In render(...), prioritize showing every geometric object explicitly mentioned in the problem. If the problem names a segment, altitude, median, bisector, chord, etc., construct the corresponding segment(...) (or other drawable) and include it in render(...). Example: altitude AH of triangle ABC → create segment(A, H) and add it to render(...).
+12. Do NOT include in render(...) auxiliary objects added only to define constraints or intermediate constructions that the problem does not mention. Example: a helper line used only for an intersection or an on(...) constraint should be constructed if needed, but omitted from render(...).
 
 Write the complete Geo-DSL program now:`;
             }
@@ -2906,6 +2907,7 @@ ${problemText}
 9. Điểm tự do: A, B = points(free). Điểm phụ thuộc dựng bằng lệnh hình học.
 10. Khi intersect() trả về nhiều điểm, tên đã định nghĩa ở vế trái được khớp theo vị trí với giao điểm tương ứng; tên còn lại nhận các giao điểm khác theo thứ tự hình học. Ví dụ: A, E = intersect(line(A, H), đường tròn ngoại tiếp) giữ A tại đỉnh cũ và gán E cho giao điểm còn lại.
 11. Trong render(...), ưu tiên thể hiện tất cả đối tượng hình học được đề cập trong đề bài. Nếu đề nói đến đoạn, đường cao, trung tuyến, phân giác, dây cung, v.v., hãy dựng segment(...) (hoặc đối tượng vẽ tương ứng) rồi đưa vào render(...). Ví dụ: đường cao AH của tam giác ABC → tạo segment(A, H) và thêm vào render(...).
+12. KHÔNG đưa vào render(...) các đối tượng phụ chỉ dùng để xác định ràng buộc hoặc bước dựng trung gian mà đề bài không đề cập. Ví dụ: đường thẳng/tia chỉ dùng để tìm giao điểm hoặc ràng buộc on(...) thì vẫn có thể dựng khi cần, nhưng không liệt kê trong render(...).
 
 Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
         }
