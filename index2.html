@@ -937,16 +937,50 @@ ls_ob = segment(O, B)`
                 if (templateTerm.template.targetName !== currentName) {
                     throw new Error('Vế chứa điểm cần dựng phải dùng chính biến đang gán, ví dụ segment(H,G)');
                 }
-                if (templateTerm.template.anchor?.name !== origin.name) {
-                    throw new Error(`Đoạn chứa điểm cần dựng phải có cùng gốc với ${fnName}(), ví dụ segment(H,G)`);
-                }
                 if (Math.abs(templateTerm.factor) < 1e-9) {
                     throw new Error('Hệ số nhân ở vế chứa điểm cần dựng không được bằng 0');
                 }
 
                 return {
-                    length: Math.abs(actualTerm.factor / templateTerm.factor) * distanceBetween(actualTerm.segment.p1, actualTerm.segment.p2)
+                    length: Math.abs(actualTerm.factor / templateTerm.factor) * distanceBetween(actualTerm.segment.p1, actualTerm.segment.p2),
+                    templateAnchor: templateTerm.template.anchor || null
                 };
+            }
+
+            function solveConstrainedTOnLine(origin, directionPoint, anchorPoint, targetDistance, mode) {
+                const uxRaw = directionPoint.x - origin.x;
+                const uyRaw = directionPoint.y - origin.y;
+                const baseLen = Math.hypot(uxRaw, uyRaw);
+                if (baseLen < 1e-9) return [];
+                const ux = uxRaw / baseLen;
+                const uy = uyRaw / baseLen;
+                const ax = anchorPoint.x - origin.x;
+                const ay = anchorPoint.y - origin.y;
+                const proj = ax * ux + ay * uy;
+                const perpX = ax - proj * ux;
+                const perpY = ay - proj * uy;
+                const perpDistSq = perpX * perpX + perpY * perpY;
+                const dSq = targetDistance * targetDistance;
+                if (perpDistSq > dSq + 1e-6) return [];
+                const along = Math.sqrt(Math.max(0, dSq - perpDistSq));
+                const t1 = proj + along;
+                const t2 = proj - along;
+                const allCandidates = Math.abs(t1 - t2) < 1e-6 ? [t1] : [t1, t2];
+                if (mode === 'ray') {
+                    return allCandidates.filter(t => t >= -1e-6);
+                }
+                return allCandidates;
+            }
+
+            function pickConstrainedTCandidate(candidates, origin, directionPoint) {
+                if (!candidates.length) return null;
+                if (currentAssignmentName && globalPoints[currentAssignmentName]) {
+                    const targetT = projectionFactor(globalPoints[currentAssignmentName], origin, directionPoint);
+                    return candidates.reduce((best, cur) =>
+                        Math.abs(cur - targetT) < Math.abs(best - targetT) ? cur : best
+                    , candidates[0]);
+                }
+                return Math.max(...candidates);
             }
 
             function buildCircleConstruction(centerName, center, radius, role) {
@@ -1025,6 +1059,21 @@ ls_ob = segment(O, B)`
                 let length = len * 1.15;
                 if (distanceArg?.type === 'EqualityExpr') {
                     const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
+                    if (resolved.templateAnchor && resolved.templateAnchor.name !== origin.name) {
+                        const candidates = solveConstrainedTOnLine(origin, directionPoint, resolved.templateAnchor, resolved.length, 'ray');
+                        const selectedDistance = pickConstrainedTCandidate(candidates, origin, directionPoint);
+                        if (selectedDistance === null) {
+                            throw new Error(`Không tìm được điểm thỏa ràng buộc khoảng cách trên tia ${origin.name || ''}${directionPoint.name || ''}`.trim());
+                        }
+                        const t = selectedDistance / len;
+                        return {
+                            type: 'Point',
+                            x: origin.x + dx * t,
+                            y: origin.y + dy * t,
+                            isDraggable: true,
+                            dragConstraint: { type: 'ray', originName: origin.name, directionName: directionPoint.name }
+                        };
+                    }
                     length = resolved.length;
                 }
                 const point = {
@@ -1065,6 +1114,21 @@ ls_ob = segment(O, B)`
                 let length = len * 1.15;
                 if (distanceArg?.type === 'EqualityExpr') {
                     const resolved = resolveSegmentEqualityConstraint(distanceArg, origin, currentAssignmentName, fnName);
+                    if (resolved.templateAnchor && resolved.templateAnchor.name !== origin.name) {
+                        const candidates = solveConstrainedTOnLine(origin, directionPoint, resolved.templateAnchor, resolved.length, 'line');
+                        const selectedDistance = pickConstrainedTCandidate(candidates, origin, directionPoint);
+                        if (selectedDistance === null) {
+                            throw new Error('Không tìm được điểm thỏa ràng buộc khoảng cách trên đường thẳng đã cho');
+                        }
+                        const t = selectedDistance / len;
+                        return {
+                            type: 'Point',
+                            x: origin.x + dx * t,
+                            y: origin.y + dy * t,
+                            isDraggable: false,
+                            dragConstraint: null
+                        };
+                    }
                     length = resolved.length;
                 } else if (hasFixedDistance) {
                     length = getDistanceArg(origin, distanceArg, fnName);
