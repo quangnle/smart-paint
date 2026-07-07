@@ -76,8 +76,9 @@
         
         <!-- Left Panel: Code Editor -->
         <section class="w-[36%] min-w-[340px] max-w-[540px] border-r border-[#313244] bg-[#1e1e2e] flex flex-col h-full">
-            <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center">
+            <div class="p-4 border-b border-[#313244] bg-[#181825] flex justify-between items-center gap-2">
                 <span id="editor-panel-title" class="text-xs font-semibold uppercase tracking-wider text-[#cdd6f4]">Trình soạn thảo mã lệnh</span>
+                <button id="ai-prompt-open-button" onclick="openAiPromptModal()" class="shrink-0 text-xs bg-[#313244] hover:bg-[#45475a] text-white px-3 py-1.5 rounded transition">Sinh AI Prompt</button>
             </div>
             
             <!-- Code Area -->
@@ -184,6 +185,31 @@
         </div>
     </div>
 
+    <div id="ai-prompt-modal" class="hidden fixed inset-0 z-50 docs-backdrop flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl max-h-[90vh] bg-[#181825] border border-[#313244] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-[#313244] flex items-center justify-between gap-4">
+                <div>
+                    <h2 id="ai-prompt-modal-title" class="text-base font-bold text-white">Sinh AI Prompt</h2>
+                    <p id="ai-prompt-modal-description" class="text-xs text-[#a6adc8] mt-1">Nhập đề bài hình học để tạo prompt gửi cho LLM sinh mã Geo-DSL.</p>
+                </div>
+                <button id="ai-prompt-close-button" onclick="closeAiPromptModal()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-3 py-2 rounded transition">Đóng</button>
+            </div>
+            <div class="px-5 py-4 border-b border-[#313244] bg-[#11111b] flex flex-col gap-3">
+                <label id="ai-prompt-problem-label" for="ai-prompt-problem" class="text-xs font-semibold text-[#cdd6f4]">Đề bài hình học</label>
+                <textarea id="ai-prompt-problem" rows="6" class="w-full bg-[#181825] text-[#cdd6f4] border border-[#313244] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#89b4fa] resize-y" placeholder="Nhập đề bài..."></textarea>
+                <button id="ai-prompt-generate-button" onclick="generateAiPrompt()" class="self-start text-xs bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-bold px-4 py-2 rounded transition">Sinh prompt AI</button>
+            </div>
+            <div class="flex-1 flex flex-col min-h-0 p-5 gap-3 bg-[#181825]">
+                <div class="flex items-center justify-between gap-3">
+                    <label id="ai-prompt-output-label" for="ai-prompt-output" class="text-xs font-semibold text-[#cdd6f4]">Prompt đã sinh</label>
+                    <button id="ai-prompt-copy-button" onclick="copyAiPrompt()" class="text-xs bg-[#313244] hover:bg-[#45475a] text-white px-3 py-1.5 rounded transition">Sao chép</button>
+                </div>
+                <textarea id="ai-prompt-output" readonly rows="14" class="flex-1 min-h-[220px] w-full bg-[#11111b] text-[#a6e3a1] font-mono border border-[#313244] rounded-lg px-3 py-2 text-xs leading-relaxed focus:outline-none resize-y" placeholder="Prompt sẽ hiện ở đây..."></textarea>
+                <p id="ai-prompt-copy-status" class="hidden text-xs text-[#a6e3a1]"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- JS Logic -->
     <script>
         // Các preset code mẫu
@@ -262,7 +288,19 @@ ls_ob = segment(O, B)`
                 loading: 'Đang tải tài liệu cú pháp...',
                 loadError: 'Không tải được file syntax-docs.json. Hãy mở trang từ workspace hiện tại để dùng tra cứu.',
                 emptyResult: 'Không có mục nào khớp với từ khóa hoặc category đang chọn.',
-                itemCount: 'mục'
+                itemCount: 'mục',
+                aiPromptButton: 'Sinh AI Prompt',
+                aiPromptModalTitle: 'Sinh AI Prompt',
+                aiPromptModalDescription: 'Nhập đề bài hình học để tạo prompt gửi cho LLM sinh mã Geo-DSL.',
+                aiPromptProblemLabel: 'Đề bài hình học',
+                aiPromptProblemPlaceholder: 'Nhập đề bài...',
+                aiPromptGenerateButton: 'Sinh prompt AI',
+                aiPromptOutputLabel: 'Prompt đã sinh',
+                aiPromptOutputPlaceholder: 'Prompt sẽ hiện ở đây...',
+                aiPromptCopyButton: 'Sao chép',
+                aiPromptCopied: 'Đã sao chép vào clipboard.',
+                aiPromptCopyFailed: 'Không sao chép được. Hãy chọn và copy thủ công.',
+                aiPromptEmptyProblem: 'Vui lòng nhập đề bài trước khi sinh prompt.'
             },
             en: {
                 pageTitle: 'Geo-DSL: Planar geometry builder',
@@ -288,7 +326,19 @@ ls_ob = segment(O, B)`
                 loading: 'Loading syntax reference...',
                 loadError: 'Could not load syntax-docs.json. Open the page from this workspace to use the reference.',
                 emptyResult: 'No entries match the current keyword or category.',
-                itemCount: 'items'
+                itemCount: 'items',
+                aiPromptButton: 'AI Prompt',
+                aiPromptModalTitle: 'Generate AI Prompt',
+                aiPromptModalDescription: 'Enter a geometry problem to build a prompt for an LLM to generate Geo-DSL code.',
+                aiPromptProblemLabel: 'Geometry problem',
+                aiPromptProblemPlaceholder: 'Enter the problem statement...',
+                aiPromptGenerateButton: 'Generate AI prompt',
+                aiPromptOutputLabel: 'Generated prompt',
+                aiPromptOutputPlaceholder: 'The prompt will appear here...',
+                aiPromptCopyButton: 'Copy',
+                aiPromptCopied: 'Copied to clipboard.',
+                aiPromptCopyFailed: 'Copy failed. Please select and copy manually.',
+                aiPromptEmptyProblem: 'Please enter a problem statement before generating the prompt.'
             }
         };
 
@@ -2563,6 +2613,16 @@ ls_ob = segment(O, B)`
             document.getElementById('syntax-docs-modal-description').textContent = getUiText('modalDescription');
             document.getElementById('syntax-docs-close-button').textContent = getUiText('closeButton');
             document.getElementById('syntax-docs-search').placeholder = getUiText('searchPlaceholder');
+            document.getElementById('ai-prompt-open-button').textContent = getUiText('aiPromptButton');
+            document.getElementById('ai-prompt-modal-title').textContent = getUiText('aiPromptModalTitle');
+            document.getElementById('ai-prompt-modal-description').textContent = getUiText('aiPromptModalDescription');
+            document.getElementById('ai-prompt-problem-label').textContent = getUiText('aiPromptProblemLabel');
+            document.getElementById('ai-prompt-problem').placeholder = getUiText('aiPromptProblemPlaceholder');
+            document.getElementById('ai-prompt-generate-button').textContent = getUiText('aiPromptGenerateButton');
+            document.getElementById('ai-prompt-output-label').textContent = getUiText('aiPromptOutputLabel');
+            document.getElementById('ai-prompt-output').placeholder = getUiText('aiPromptOutputPlaceholder');
+            document.getElementById('ai-prompt-copy-button').textContent = getUiText('aiPromptCopyButton');
+            document.getElementById('ai-prompt-close-button').textContent = getUiText('closeButton');
             renderUiLanguageSwitch();
         }
 
@@ -2686,6 +2746,118 @@ ls_ob = segment(O, B)`
 
         function closeSyntaxDocsModal() {
             document.getElementById('syntax-docs-modal').classList.add('hidden');
+        }
+
+        function buildSyntaxReferenceForPrompt() {
+            if (!syntaxDocsData?.categories?.length) {
+                return uiLanguage === 'en'
+                    ? '(Syntax reference not loaded.)'
+                    : '(Chưa tải được tài liệu cú pháp.)';
+            }
+            return syntaxDocsData.categories.map(category => {
+                const label = category.label?.[uiLanguage] || category.label?.vi || category.label?.en || category.id;
+                const items = category.items.map(item => {
+                    const desc = item.description?.[uiLanguage] || item.description?.vi || item.description?.en || '';
+                    return `- ${item.syntax}\n  ${desc}`;
+                }).join('\n');
+                return `## ${label}\n${items}`;
+            }).join('\n\n');
+        }
+
+        function buildAiPrompt(problemText) {
+            const syntaxRef = buildSyntaxReferenceForPrompt();
+            if (uiLanguage === 'en') {
+                return `You are a geometry construction assistant for Geo-DSL Studio.
+
+Your task: write executable Geo-DSL code to construct and render the geometry described in the problem below.
+
+=== GEO-DSL SYNTAX REFERENCE ===
+${syntaxRef}
+
+=== GEOMETRY PROBLEM ===
+${problemText}
+
+=== OUTPUT REQUIREMENTS ===
+1. Output ONLY Geo-DSL code. No markdown fences, no explanation outside comments.
+2. Use ONLY commands from the syntax reference above.
+3. Add comments for each logical step of the problem (map comments to problem parts).
+4. NEVER use inline comments. Every comment must be on its own line above the related command(s).
+5. NEVER break a single command across multiple lines. Each statement must be exactly one line (including render(...), len_group(...), color_group(...), etc.).
+6. End with render(...) listing the objects to display.
+7. Use meaningful point names matching the problem (A, B, C, O, M, ...).
+8. Free points: A, B = points(free). Dependent points via construction commands.
+
+Write the complete Geo-DSL program now:`;
+            }
+            return `Bạn là trợ lý dựng hình học cho Geo-DSL Studio.
+
+Nhiệm vụ: viết mã Geo-DSL có thể chạy được để dựng và hiển thị hình học trong đề bài bên dưới.
+
+=== TÀI LIỆU CÚ PHÁP GEO-DSL ===
+${syntaxRef}
+
+=== ĐỀ BÀI HÌNH HỌC ===
+${problemText}
+
+=== YÊU CẦU ĐẦU RA ===
+1. Chỉ xuất mã Geo-DSL. Không dùng markdown fence, không giải thích ngoài comment.
+2. Chỉ dùng các lệnh có trong tài liệu cú pháp ở trên.
+3. Thêm comment cho từng ý / bước của đề bài (comment tương ứng từng phần đề).
+4. TUYỆT ĐỐI không dùng inline comment. Mỗi comment phải nằm trên một dòng riêng, phía trên lệnh liên quan.
+5. TUYỆT ĐỐI không xuống dòng giữa một câu lệnh. Mỗi lệnh phải nằm trọn trên một dòng (kể cả render(...), len_group(...), color_group(...), ...).
+6. Kết thúc bằng render(...) liệt kê các đối tượng cần hiển thị.
+7. Đặt tên điểm khớp đề bài (A, B, C, O, M, ...).
+8. Điểm tự do: A, B = points(free). Điểm phụ thuộc dựng bằng lệnh hình học.
+
+Hãy viết chương trình Geo-DSL hoàn chỉnh:`;
+        }
+
+        async function openAiPromptModal() {
+            document.getElementById('ai-prompt-modal').classList.remove('hidden');
+            document.getElementById('ai-prompt-copy-status').classList.add('hidden');
+            await ensureSyntaxDocsLoaded();
+            applyUiLanguage();
+        }
+
+        function closeAiPromptModal() {
+            document.getElementById('ai-prompt-modal').classList.add('hidden');
+        }
+
+        async function generateAiPrompt() {
+            const problemEl = document.getElementById('ai-prompt-problem');
+            const outputEl = document.getElementById('ai-prompt-output');
+            const statusEl = document.getElementById('ai-prompt-copy-status');
+            const problemText = problemEl.value.trim();
+            statusEl.classList.add('hidden');
+            if (!problemText) {
+                outputEl.value = '';
+                statusEl.textContent = getUiText('aiPromptEmptyProblem');
+                statusEl.classList.remove('hidden');
+                statusEl.classList.remove('text-[#a6e3a1]');
+                statusEl.classList.add('text-[#f38ba8]');
+                return;
+            }
+            await ensureSyntaxDocsLoaded();
+            outputEl.value = buildAiPrompt(problemText);
+        }
+
+        async function copyAiPrompt() {
+            const outputEl = document.getElementById('ai-prompt-output');
+            const statusEl = document.getElementById('ai-prompt-copy-status');
+            const text = outputEl.value;
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                statusEl.textContent = getUiText('aiPromptCopied');
+                statusEl.classList.remove('hidden', 'text-[#f38ba8]');
+                statusEl.classList.add('text-[#a6e3a1]');
+            } catch (error) {
+                outputEl.focus();
+                outputEl.select();
+                statusEl.textContent = getUiText('aiPromptCopyFailed');
+                statusEl.classList.remove('hidden', 'text-[#a6e3a1]');
+                statusEl.classList.add('text-[#f38ba8]');
+            }
         }
 
         function handleMouseMove(evt) {
